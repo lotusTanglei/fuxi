@@ -1,0 +1,41 @@
+server:
+  port: 18181
+
+spring:
+  application:
+    name: script-manager
+  datasource:
+    # Default H2 configuration
+    # url: jdbc:h2:mem:fuxi_script_db;DB_CLOSE_DELAY=-1;MODE=MySQL
+    # driver-class-name: org.h2.Driver
+    # username: sa
+    # password:
+    # MySQL configuration (uncomment to use)
+    url: jdbc:mysql://47.92.227.143:3306/fuxi?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: fuxi
+    password: fuxi123456
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  thymeleaf:
+    cache: false
+    mode: HTML
+    encoding: UTF-8
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.fuxi.script.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.fuxi.script: DEBUG
+    org.springframework: INFO

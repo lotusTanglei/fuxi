@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">执行任务包</div>
+        <div class="layui-card-body">
+            <form class="layui-form" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <div style="display: flex; gap: 10px;">
+                    <div class="layui-inline">
+                        <input class="layui-input" name="title" placeholder="搜索任务标题" autocomplete="off">
+                    </div>
+                    <button class="layui-btn" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                </div>
+                <div sec:authorize="hasAnyRole('OPS', 'LEADER')">
+                    <a href="/plan/form" class="layui-btn layui-btn-normal">
+                        <i class="layui-icon layui-icon-add-1"></i> 新建任务包
+                    </a>
+                </div>
+            </form>
+            
+            <table id="planTable" lay-filter="planTable"></table>
+            
+            <script type="text/html" id="barDemo">
+                <a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>
+                {{#  if(d.status === 'DRAFT'){ }}
+                    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit">编辑</a>
+                    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+                {{#  } }}
+            </script>
+        </div>
+    </div>
+
+    <script>
+        layui.use(['table', 'layer', 'form', 'jquery'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Render Table
+            table.render({
+                elem: '#planTable',
+                url: '/plan/api/list',
+                cols: [
+                    [
+                        {type: 'numbers', title: '序号', width: 80},
+                        {field: 'title', title: '任务标题', width: 200},
+                        {field: 'targetSite', title: '目标现场', width: 150},
+                        {field: 'status', title: '状态', width: 120, templet: function(d){
+                            if(d.status === 'DRAFT') return '<span class="layui-badge layui-bg-gray">草稿</span>';
+                            if(d.status === 'PENDING') return '<span class="layui-badge layui-bg-orange">待执行</span>';
+                            if(d.status === 'RUNNING') return '<span class="layui-badge layui-bg-blue">执行中</span>';
+                            if(d.status === 'COMPLETED') return '<span class="layui-badge layui-bg-green">已完成</span>';
+                            if(d.status === 'FAILED') return '<span class="layui-badge">失败</span>';
+                            return d.status;
+                        }},
+                        {field: 'createdBy', title: '创建人', width: 120},
+                        {field: 'createdAt', title: '创建时间', width: 180},
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 200}
+                    ]
+                ],
+                page: true
+            });
+            
+            // Search
+            form.on('submit(search)', function(data){
+                table.reload('planTable', {
+                    where: data.field,
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+            
+            // Tool Bar
+            table.on('tool(planTable)', function(obj){
+                var data = obj.data;
+                if(obj.event === 'del'){
+                    layer.confirm('真的删除该任务包吗？', function(index){
+                        // TODO: Implement delete API
+                        layer.msg('暂未实现删除');
+                        layer.close(index);
+                    });
+                } else if(obj.event === 'edit'){
+                    window.location.href = '/plan/form?id=' + data.id;
+                } else if(obj.event === 'detail'){
+                    window.location.href = '/plan/detail/' + data.id;
+                }
+            });
+        });
+    </script>
+</div>
+</body>
+</html>

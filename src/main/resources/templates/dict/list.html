@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">基础数据</div>
+        <div class="layui-card-body">
+            <form class="layui-form" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <div style="display: flex; gap: 10px;">
+                    <div class="layui-inline">
+                        <select name="category">
+                            <option value="">全部类别</option>
+                            <option value="script_type">脚本类型</option>
+                            <option value="target_env">目标环境</option>
+                        </select>
+                    </div>
+                    <div class="layui-inline">
+                        <input class="layui-input" name="label" placeholder="搜索名称" autocomplete="off">
+                    </div>
+                    <button class="layui-btn" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                </div>
+                <div>
+                    <button type="button" class="layui-btn layui-btn-normal" id="addBtn">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增数据
+                    </button>
+                </div>
+            </form>
+            
+            <table id="dictTable" lay-filter="dictTable"></table>
+            
+            <script type="text/html" id="barDemo">
+                <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+                {{#  if(d.status === 0){ }}
+                    <a class="layui-btn layui-btn-warm layui-btn-xs" lay-event="disable">停用</a>
+                {{#  } else { }}
+                    <a class="layui-btn layui-btn-normal layui-btn-xs" lay-event="enable">启用</a>
+                {{#  } }}
+            </script>
+        </div>
+    </div>
+
+    <script>
+        layui.use(['table', 'layer', 'form', 'jquery'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Render Table
+            table.render({
+                elem: '#dictTable',
+                url: '/dict/api/list',
+                cols: [
+                    [
+                        {type: 'numbers', title: '序号', width: 80},
+                        {field: 'category', title: '类别', width: 150, sort: true, templet: function(d){
+                            if(d.category === 'script_type') return '脚本类型';
+                            if(d.category === 'target_env') return '目标环境';
+                            return d.category;
+                        }},
+                        {field: 'code', title: '编码', width: 150},
+                        {field: 'label', title: '名称', width: 200},
+                        {field: 'sort', title: '排序', width: 80, sort: true},
+                        {field: 'status', title: '状态', width: 100, templet: function(d){
+                            return d.status === 0 ? '<span class="layui-badge layui-bg-green">启用</span>' : '<span class="layui-badge layui-bg-gray">停用</span>';
+                        }},
+                        {field: 'createdAt', title: '创建时间', width: 180},
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 150}
+                    ]
+                ],
+                page: true
+            });
+            
+            // Search
+            form.on('submit(search)', function(data){
+                table.reload('dictTable', {
+                    where: data.field,
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+            
+            // Add Button
+            $(document).on('click', '#addBtn', function(){
+                openForm();
+            });
+            
+            // Tool Bar
+            table.on('tool(dictTable)', function(obj){
+                var data = obj.data;
+                if(obj.event === 'disable'){
+                    updateStatus(data.id, 1, '停用');
+                } else if(obj.event === 'enable'){
+                    updateStatus(data.id, 0, '启用');
+                } else if(obj.event === 'edit'){
+                    openForm(data.id);
+                }
+            });
+            
+            function updateStatus(id, status, actionName) {
+                layer.confirm('确定要' + actionName + '该数据项吗？', function(index){
+                    var token = $("meta[name='_csrf']").attr("content");
+                    var header = $("meta[name='_csrf_header']").attr("content");
+                    
+                    $.ajax({
+                        url: '/dict/save',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({id: id, status: status}),
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader(header, token);
+                        },
+                        success: function(res){
+                            if(res.code === 0){
+                                table.reload('dictTable');
+                                layer.msg(actionName + '成功');
+                            } else {
+                                layer.msg(res.msg);
+                            }
+                        }
+                    });
+                    layer.close(index);
+                });
+            }
+            
+            function openForm(id) {
+                var url = '/dict/form';
+                if (id) {
+                    url += '?id=' + id;
+                }
+                
+                layer.open({
+                    type: 2,
+                    title: id ? '编辑数据' : '新增数据',
+                    content: url,
+                    area: ['500px', '450px'],
+                    end: function(){
+                        table.reload('dictTable');
+                    }
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>现场表单</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        body { padding: 20px; }
+    </style>
+</head>
+<body>
+    <form class="layui-form" action="">
+        <input type="hidden" name="id" th:value="${site.id}">
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">现场名称</label>
+            <div class="layui-input-block">
+                <input type="text" name="name" required  lay-verify="required" placeholder="请输入现场名称" autocomplete="off" class="layui-input" th:value="${site.name}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">描述</label>
+            <div class="layui-input-block">
+                <textarea name="description" placeholder="请输入描述内容" class="layui-textarea" th:text="${site.description}"></textarea>
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="layui-btn" lay-submit lay-filter="formSubmit">立即提交</button>
+                <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+            </div>
+        </div>
+    </form>
+    
+    <script src="//unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script>
+        layui.use(['form', 'jquery'], function(){
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Listen Submit
+            form.on('submit(formSubmit)', function(data){
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                // Need to convert data.field to JSON if using @RequestBody
+                $.ajax({
+                    url: '/site/save',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data.field),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            var index = parent.layer.getFrameIndex(window.name); 
+                            parent.layer.close(index);
+                            parent.layer.msg('保存成功');
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+                return false;
+            });
+        });
+    </script>
+</body>
+</html>

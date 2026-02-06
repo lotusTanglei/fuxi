@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span style="font-size: 18px; margin-right: 10px;" th:text="${plan.title}">任务标题</span>
+            <span id="planStatusBadge" class="layui-badge layui-bg-gray" th:text="${plan.status}">STATUS</span>
+            <div style="float: right;">
+                <button class="layui-btn layui-btn-normal layui-btn-sm" id="executeBtn" th:if="${plan.status == 'DRAFT' || plan.status == 'PENDING' || plan.status == 'FAILED'}">
+                    <i class="layui-icon layui-icon-play"></i> 执行任务
+                </button>
+                <a href="/plan/list" class="layui-btn layui-btn-primary layui-btn-sm">返回列表</a>
+            </div>
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-row layui-col-space15">
+                <div class="layui-col-md12">
+                    <div class="layui-card">
+                        <div class="layui-card-body" style="background-color: #f8f8f8;">
+                            <p><strong>目标现场：</strong> <span th:text="${plan.targetSite}"></span></p>
+                            <p><strong>描述信息：</strong> <span th:text="${plan.description}"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <table id="itemTable" lay-filter="itemTable"></table>
+            
+            <script type="text/html" id="barDemo">
+                {{#  if(d.status === 'SUCCESS' && (d.verifyStatus === 'PENDING' || d.verifyStatus == null)){ }}
+                    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="verify">验证</a>
+                {{#  } }}
+            </script>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        layui.use(['table', 'layer', 'jquery'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            var $ = layui.jquery;
+            
+            var planId = [[${plan.id}]];
+            var planStatus = [[${plan.status}]];
+            
+            // Status Badge Color
+            function updateStatusBadge(status) {
+                var color = 'layui-bg-gray';
+                if(status === 'PENDING') color = 'layui-bg-orange';
+                if(status === 'RUNNING') color = 'layui-bg-blue';
+                if(status === 'COMPLETED') color = 'layui-bg-green';
+                if(status === 'FAILED') color = ''; // default red
+                
+                $('#planStatusBadge').attr('class', 'layui-badge ' + color).text(status);
+                
+                if (status === 'RUNNING') {
+                    $('#executeBtn').hide();
+                } else if (status === 'DRAFT' || status === 'PENDING' || status === 'FAILED') {
+                    $('#executeBtn').show();
+                }
+            }
+            updateStatusBadge(planStatus);
+            
+            // Render Table
+            table.render({
+                elem: '#itemTable',
+                url: '/plan/api/items/' + planId,
+                cols: [
+                    [
+                        {field: 'sortOrder', title: '顺序', width: 80, align: 'center'},
+                        {field: 'scriptVersionId', title: '脚本ID', width: 100}, // Should fetch title, but keeping simple for now
+                        {field: 'status', title: '状态', width: 120, align: 'center', templet: function(d){
+                            if(d.status === 'PENDING') return '<span class="layui-badge-dot layui-bg-orange"></span> 待执行';
+                            if(d.status === 'RUNNING') return '<span class="layui-badge-dot layui-bg-blue"></span> 执行中';
+                            if(d.status === 'SUCCESS') return '<span class="layui-badge-dot layui-bg-green"></span> 成功';
+                            if(d.status === 'FAILED') return '<span class="layui-badge-dot"></span> 失败';
+                            return d.status;
+                        }},
+                        {field: 'executionResult', title: '执行结果'},
+                        {field: 'startedAt', title: '开始时间', width: 180},
+                        {field: 'finishedAt', title: '结束时间', width: 180},
+                        {field: 'verifyStatus', title: '验证状态', width: 100, templet: function(d){
+                            if(d.verifyStatus === 'PASS') return '<span style="color: green">通过</span>';
+                            if(d.verifyStatus === 'FAIL') return '<span style="color: red">失败</span>';
+                            return '未验证';
+                        }},
+                        {field: 'verifiedBy', title: '验证人', width: 100},
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 80}
+                    ]
+                ]
+            });
+            
+            // Tool Bar
+            table.on('tool(itemTable)', function(obj){
+                var data = obj.data;
+                if(obj.event === 'verify'){
+                    layer.confirm('验证结果确认', {
+                        btn: ['通过', '不通过', '取消'] // Buttons
+                    }, function(index){
+                        submitVerify(data.id, true, 'Verified via UI');
+                        layer.close(index);
+                    }, function(index){
+                        layer.prompt({title: '请输入不通过原因', formType: 2}, function(text, index2){
+                            submitVerify(data.id, false, text);
+                            layer.close(index2);
+                            layer.close(index);
+                        });
+                    });
+                }
+            });
+            
+            function submitVerify(itemId, pass, remark) {
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                $.ajax({
+                    url: '/plan/verify/' + itemId,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({pass: pass, remark: remark}),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            layer.msg('操作成功');
+                            table.reload('itemTable');
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+            }
+            
+            // Execute Button
+            $('#executeBtn').on('click', function(){
+                layer.confirm('确定要开始执行该任务包吗？', function(index){
+                    $.post('/plan/execute/' + planId, {
+                        _csrf: $("meta[name='_csrf']").attr("content")
+                    }, function(res){
+                        if(res.code === 0){
+                            layer.msg('任务已启动');
+                            $('#executeBtn').hide();
+                            startPolling();
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    });
+                    layer.close(index);
+                });
+            });
+            
+            // Polling for updates
+            var pollInterval;
+            function startPolling() {
+                if (pollInterval) return;
+                pollInterval = setInterval(function(){
+                    table.reload('itemTable');
+                    // Check plan status (optional: need an API for plan status or reload page)
+                    // For simplicity, we just reload table. If all done, we could stop polling.
+                }, 2000);
+            }
+            
+            if (planStatus === 'RUNNING') {
+                startPolling();
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>用户表单</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        body { padding: 20px; }
+    </style>
+</head>
+<body>
+    <form class="layui-form" action="">
+        <input type="hidden" name="id" th:value="${user.id}">
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">用户名</label>
+            <div class="layui-input-block">
+                <input type="text" name="username" required  lay-verify="required" placeholder="请输入用户名" autocomplete="off" class="layui-input" th:value="${user.username}" th:readonly="${user.id != null}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">密码</label>
+            <div class="layui-input-block">
+                <input type="password" name="password" placeholder="留空则不修改密码" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">真实姓名</label>
+            <div class="layui-input-block">
+                <input type="text" name="realName" required  lay-verify="required" placeholder="请输入真实姓名" autocomplete="off" class="layui-input" th:value="${user.realName}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">角色</label>
+            <div class="layui-input-block">
+                <!-- Multi-select for roles using checkboxes or xm-select (simplifying with checkboxes for now) -->
+                <input type="checkbox" name="roles" value="ADMIN" title="系统管理员" lay-skin="primary">
+                <input type="checkbox" name="roles" value="DEV" title="开发工程师" lay-skin="primary">
+                <input type="checkbox" name="roles" value="OPS" title="运维工程师" lay-skin="primary">
+                <input type="checkbox" name="roles" value="LEADER" title="技术主管" lay-skin="primary">
+                
+                <!-- Hidden input to store comma-separated string -->
+                <input type="hidden" name="role" id="roleInput" th:value="${user.role}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="layui-btn" lay-submit lay-filter="formSubmit">立即提交</button>
+                <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+            </div>
+        </div>
+    </form>
+    
+    <script src="//unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script>
+        layui.use(['form', 'jquery'], function(){
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Initialize role checkboxes
+            var currentRoles = $('#roleInput').val();
+            if (currentRoles) {
+                var roleArray = currentRoles.split(',');
+                roleArray.forEach(function(r) {
+                    $('input[name="roles"][value="' + r.trim() + '"]').prop('checked', true);
+                });
+                form.render('checkbox');
+            }
+
+            // Listen Submit
+            form.on('submit(formSubmit)', function(data){
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                // Aggregate roles
+                var roles = [];
+                $('input[name="roles"]:checked').each(function() {
+                    roles.push($(this).val());
+                });
+                data.field.role = roles.join(',');
+
+                $.ajax({
+                    url: '/user/save',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data.field),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            var index = parent.layer.getFrameIndex(window.name); 
+                            parent.layer.close(index);
+                            parent.layui.table.reload('userTable');
+                            parent.layer.msg('保存成功');
+                        } else {
+                            layer.msg(res.msg, {icon: 5});
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+                return false;
+            });
+        });
+    </script>
+</body>
+</html>

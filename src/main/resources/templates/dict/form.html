@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>基础数据表单</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        body { padding: 20px; }
+    </style>
+</head>
+<body>
+    <form class="layui-form" action="">
+        <input type="hidden" name="id" th:value="${dict.id}">
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">类别</label>
+            <div class="layui-input-block">
+                <select name="category" lay-verify="required">
+                    <option value="">请选择类别</option>
+                    <option value="script_type" th:selected="${dict.category == 'script_type'}">脚本类型</option>
+                    <option value="target_env" th:selected="${dict.category == 'target_env'}">目标环境</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">编码</label>
+            <div class="layui-input-block">
+                <input type="text" name="code" required lay-verify="required" placeholder="例如: SQL" autocomplete="off" class="layui-input" th:value="${dict.code}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-block">
+                <input type="text" name="label" required lay-verify="required" placeholder="例如: SQL脚本" autocomplete="off" class="layui-input" th:value="${dict.label}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">排序</label>
+            <div class="layui-input-block">
+                <input type="number" name="sort" placeholder="数字越小越靠前" autocomplete="off" class="layui-input" th:value="${dict.sort}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="layui-btn" lay-submit lay-filter="formSubmit">保存</button>
+                <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+            </div>
+        </div>
+    </form>
+    
+    <script src="//unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script>
+        layui.use(['form', 'jquery'], function(){
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Listen Submit
+            form.on('submit(formSubmit)', function(data){
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                $.ajax({
+                    url: '/dict/save',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data.field),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            var index = parent.layer.getFrameIndex(window.name); 
+                            parent.layer.close(index);
+                            parent.layer.msg('保存成功');
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+                return false;
+            });
+        });
+    </script>
+</body>
+</html>

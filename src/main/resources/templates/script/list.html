@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">脚本管理</div>
+        <div class="layui-card-body">
+            <!-- Toolbar -->
+            <form class="layui-form" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <div style="display: flex; gap: 10px;">
+                    <div class="layui-inline">
+                        <input class="layui-input" name="title" placeholder="搜索脚本标题" autocomplete="off">
+                    </div>
+                    <button class="layui-btn" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                </div>
+                <div sec:authorize="hasAnyRole('ADMIN', 'DEV')">
+                    <button type="button" class="layui-btn layui-btn-normal" id="addBtn">
+                        <i class="layui-icon layui-icon-add-1"></i> 新建脚本
+                    </button>
+                </div>
+            </form>
+            
+            <table id="scriptTable" lay-filter="scriptTable"></table>
+            
+            <script type="text/html" id="statusTpl">
+                {{#  if(d.status === 'DRAFT'){ }}
+                    <span class="layui-badge layui-bg-gray">草稿</span>
+                {{#  } else if(d.status === 'SUBMITTED'){ }}
+                    <span class="layui-badge layui-bg-orange">待审核</span>
+                {{#  } else if(d.status === 'APPROVED'){ }}
+                    <span class="layui-badge layui-bg-green">已通过</span>
+                {{#  } else if(d.status === 'REJECTED'){ }}
+                    <span class="layui-badge">已拒绝</span>
+                {{#  } }}
+            </script>
+            
+            <script type="text/html" id="barDemo">
+                {{#  if(d.status === 'DRAFT' || d.status === 'REJECTED'){ }}
+                    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+                    <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="history">历史</a>
+                    <a class="layui-btn layui-btn-warm layui-btn-xs" lay-event="submit">提交</a>
+                    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+                {{#  } else { }}
+                    <a class="layui-btn layui-btn-primary layui-btn-xs" lay-event="view">查看</a>
+                {{#  } }}
+            </script>
+        </div>
+    </div>
+
+    <script>
+        layui.use(['table', 'layer', 'form', 'jquery'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Render Table
+            table.render({
+                elem: '#scriptTable',
+                url: '/script/api/list',
+                cols: [
+                    [
+                        {type: 'numbers', title: '序号', width: 80},
+                        {field: 'title', title: '标题', width: 200},
+                        {field: 'type', title: '类型', width: 100},
+                        {field: 'targetEnv', title: '目标环境', width: 120},
+                        {field: 'versionNum', title: '版本', width: 100, align: 'center'},
+                        {field: 'status', title: '状态', width: 100, templet: '#statusTpl', align: 'center'},
+                        {field: 'updatedAt', title: '更新时间', width: 180},
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 200}
+                    ]
+                ],
+                page: true
+            });
+            
+            // Search
+            form.on('submit(search)', function(data){
+                table.reload('scriptTable', {
+                    where: data.field,
+                    page: { curr: 1 }
+                });
+                return false;
+            });
+            
+            // Add Button
+            $(document).on('click', '#addBtn', function(){
+                openForm();
+            });
+            
+            // Tool Bar
+            table.on('tool(scriptTable)', function(obj){
+                var data = obj.data;
+                if(obj.event === 'del'){
+                    layer.confirm('真的删除该脚本吗？', function(index){
+                        var token = $("meta[name='_csrf']").attr("content");
+                        var header = $("meta[name='_csrf_header']").attr("content");
+                        
+                        $.ajax({
+                            url: '/script/delete/' + data.id,
+                            type: 'POST',
+                            beforeSend: function(xhr) {
+                                xhr.setRequestHeader(header, token);
+                            },
+                            success: function(res){
+                                if(res.code === 0){
+                                    obj.del();
+                                    layer.msg('删除成功');
+                                } else {
+                                    layer.msg(res.msg);
+                                }
+                            }
+                        });
+                        layer.close(index);
+                    });
+                } else if(obj.event === 'edit' || obj.event === 'view'){
+                    openForm(data.id);
+                } else if(obj.event === 'history'){
+                    window.location.href = '/script/history/' + data.id;
+                } else if(obj.event === 'submit'){
+                    layer.confirm('确定提交审核吗？', function(index){
+                        var token = $("meta[name='_csrf']").attr("content");
+                        var header = $("meta[name='_csrf_header']").attr("content");
+                        
+                        $.ajax({
+                            url: '/script/submit/' + data.id,
+                            type: 'POST',
+                            beforeSend: function(xhr) {
+                                xhr.setRequestHeader(header, token);
+                            },
+                            success: function(res){
+                                if(res.code === 0){
+                                    table.reload('scriptTable');
+                                    layer.msg('提交成功');
+                                } else {
+                                    layer.msg(res.msg);
+                                }
+                            }
+                        });
+                        layer.close(index);
+                    });
+                }
+            });
+            
+            function openForm(id) {
+                var url = '/script/form';
+                if (id) {
+                    url += '?id=' + id;
+                }
+                
+                layer.open({
+                    type: 2,
+                    title: id ? '编辑脚本' : '新建脚本',
+                    content: url,
+                    area: ['800px', '600px'],
+                    end: function(){
+                        table.reload('scriptTable');
+                    }
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

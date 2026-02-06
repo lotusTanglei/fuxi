@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+    <div>
+        <div class="layui-row layui-col-space15">
+            <div class="layui-col-md12">
+                <div class="layui-card">
+                    <div class="layui-card-header">欢迎使用</div>
+                    <div class="layui-card-body">
+                        欢迎回来，<span style="font-weight: bold; color: #009688;" th:text="${#authentication.name}">Admin</span>！
+                        <br><br>
+                        当前系统状态：
+                        <ul>
+                            <li>脚本总数：0</li>
+                            <li>待执行任务：0</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

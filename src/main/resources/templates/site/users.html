@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>配置现场用户</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        body { padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="layui-form" style="padding: 20px; text-align: center;">
+        <div id="userTransfer" style="text-align: left; display: inline-block;"></div>
+        
+        <div class="layui-form-item" style="margin-top: 20px;">
+            <button class="layui-btn" id="saveBtn">保存配置</button>
+        </div>
+    </div>
+    
+    <script src="//unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script th:inline="javascript">
+        layui.use(['transfer', 'layer', 'util', 'jquery'], function(){
+            var transfer = layui.transfer;
+            var layer = layui.layer;
+            var util = layui.util;
+            var $ = layui.jquery;
+            
+            var allUsers = [[${allUsers}]];
+            var selectedUserIds = [[${selectedUserIds}]];
+            var siteId = [[${siteId}]];
+            
+            // Format data for transfer component
+            var data = [];
+            for(var i=0; i<allUsers.length; i++){
+                data.push({
+                    "value": allUsers[i].id,
+                    "title": allUsers[i].username + (allUsers[i].realName ? ' (' + allUsers[i].realName + ')' : '')
+                });
+            }
+            
+            // Render transfer
+            transfer.render({
+                elem: '#userTransfer',
+                title: ['未选择用户', '已选择用户'],
+                data: data,
+                value: selectedUserIds,
+                showSearch: true,
+                width: 300,
+                height: 400,
+                id: 'key123'
+            });
+            
+            // Save
+            $('#saveBtn').on('click', function(){
+                var getData = transfer.getData('key123');
+                var userIds = [];
+                for(var i=0; i<getData.length; i++){
+                    userIds.push(getData[i].value);
+                }
+                
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                $.ajax({
+                    url: '/site/users/save',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        siteId: siteId,
+                        userIds: userIds
+                    }),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            var index = parent.layer.getFrameIndex(window.name); 
+                            parent.layer.close(index);
+                            parent.layer.msg('保存成功');
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

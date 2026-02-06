@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">脚本审核</div>
+        <div class="layui-card-body">
+            <table id="auditTable" lay-filter="auditTable"></table>
+            
+            <script type="text/html" id="barDemo">
+                <a class="layui-btn layui-btn-xs" lay-event="approve">通过</a>
+                <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="reject">驳回</a>
+            </script>
+        </div>
+    </div>
+
+    <script>
+        layui.use(['table', 'layer', 'form', 'jquery'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Render Table
+            table.render({
+                elem: '#auditTable',
+                url: '/script/api/audit/list',
+                cols: [
+                    [
+                        {type: 'numbers', title: '序号', width: 80},
+                        {field: 'title', title: '脚本标题', width: 200},
+                        {field: 'versionNum', title: '版本号', width: 100},
+                        {field: 'type', title: '类型', width: 100},
+                        {field: 'createdBy', title: '提交人', width: 120},
+                        {field: 'createdAt', title: '提交时间', width: 180},
+                        {field: 'remark', title: '备注'},
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 150}
+                    ]
+                ],
+                page: true
+            });
+            
+            // Tool Bar
+            table.on('tool(auditTable)', function(obj){
+                var data = obj.data;
+                var scriptId = data.id; // This is Script ID
+                
+                if(obj.event === 'approve'){
+                    layer.confirm('确定审核通过该版本吗？', function(index){
+                        submitAudit(scriptId, true, '');
+                        layer.close(index);
+                    });
+                } else if(obj.event === 'reject'){
+                    layer.prompt({title: '请输入驳回原因', formType: 2}, function(text, index){
+                        submitAudit(scriptId, false, text);
+                        layer.close(index);
+                    });
+                }
+            });
+            
+            function submitAudit(id, pass, remark) {
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                $.ajax({
+                    url: '/script/audit/' + id,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({pass: pass, remark: remark}),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            layer.msg('操作成功');
+                            table.reload('auditTable');
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

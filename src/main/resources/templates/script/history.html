@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span style="font-size: 18px; margin-right: 10px;" th:text="${script.title}">脚本标题</span>
+            - 版本历史
+            <a href="/script/list" class="layui-btn layui-btn-primary layui-btn-sm" style="float: right; margin-top: 10px;">返回列表</a>
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-row layui-col-space15">
+                <div class="layui-col-md4">
+                    <div class="layui-card">
+                        <div class="layui-card-header">版本列表</div>
+                        <div class="layui-card-body">
+                            <table id="versionTable" lay-filter="versionTable"></table>
+                        </div>
+                    </div>
+                </div>
+                <div class="layui-col-md8">
+                    <div class="layui-card">
+                        <div class="layui-card-header">
+                            版本对比
+                            <div style="float: right;">
+                                <select id="compareBase" style="height: 28px; border: 1px solid #e6e6e6;"></select>
+                                <span> vs </span>
+                                <select id="compareTarget" style="height: 28px; border: 1px solid #e6e6e6;"></select>
+                                <button class="layui-btn layui-btn-xs layui-btn-normal" id="doCompareBtn">对比</button>
+                            </div>
+                        </div>
+                        <div class="layui-card-body">
+                            <div id="diffView" style="height: 500px; border: 1px solid #eee;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load jQuery for Mergely -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Load Mergely for Diff -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mergely/4.3.9/mergely.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mergely/4.3.9/mergely.min.css">
+    
+    <style>
+        /* Custom styles to make it look more like Beyond Compare */
+        .CodeMirror {
+            line-height: 1.5;
+            font-family: Consolas, "Courier New", monospace;
+        }
+        .mergely-column .CodeMirror {
+            height: 100%;
+        }
+    </style>
+
+    <script th:inline="javascript">
+        // layui.use will still work, but we ensure global jQuery is available for Mergely
+        layui.use(['table', 'layer'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            // Use global jQuery for Mergely interaction to avoid conflicts
+            var $ = jQuery; 
+            
+            var scriptId = [[${script.id}]];
+            var allVersions = [];
+            
+            // Init Mergely
+            // Note: Mergely usage might need to be adjusted based on the specific version or wrapper.
+            // If Mergely is not defined, check CDN or script loading order.
+            // Using a simple check to ensure it's loaded.
+            
+            var mergelyInstance;
+            
+            function initMergely() {
+                $('#diffView').empty(); // Clear previous instance if any
+                $('#diffView').mergely({
+                    lhs: function(setValue) {
+                        setValue('Select a version to compare');
+                    },
+                    rhs: function(setValue) {
+                        setValue('Select a version to compare');
+                    },
+                    cmsettings: { 
+                        readOnly: true, 
+                        lineNumbers: true,
+                        mode: 'text/x-sh' // Default to shell script mode
+                    },
+                    // Enable line wrapping for better visibility
+                    wrap_lines: true,
+                    // Auto-resize
+                    autoresize: true,
+                    // Viewport options
+                    viewport: true
+                });
+            }
+            
+            // Wait for resources to load if needed, but layui.use callback should be fine.
+            // However, Mergely is global.
+            if (typeof jQuery === 'undefined') {
+                // Mergely needs jQuery. Layui's jquery is modular.
+                // We might need to expose layui.jquery as window.jQuery for Mergely to work if it's not AMD compatible.
+                window.jQuery = $;
+                window.$ = $;
+            }
+            
+            initMergely();
+            
+            // Render Table
+            table.render({
+                elem: '#versionTable',
+                url: '/script/api/versions/' + scriptId,
+                cols: [
+                    [
+                        {field: 'versionNum', title: '版本', width: 80, sort: true},
+                        {field: 'status', title: '状态', width: 100, templet: function(d){
+                            if(d.status === 'APPROVED') return '<span style="color: green">已发布</span>';
+                            if(d.status === 'REJECTED') return '<span style="color: red">已驳回</span>';
+                            if(d.status === 'SUBMITTED') return '<span style="color: orange">待审核</span>';
+                            return '草稿';
+                        }},
+                        {field: 'createdAt', title: '创建时间', width: 160}
+                    ]
+                ],
+                done: function(res){
+                    if(res.code === 0){
+                        allVersions = res.data;
+                        updateSelectOptions();
+                    }
+                }
+            });
+            
+            function updateSelectOptions() {
+                var options = '';
+                allVersions.forEach(function(v){
+                    options += '<option value="' + v.id + '">' + v.versionNum + ' (' + v.status + ')</option>';
+                });
+                $('#compareBase').html(options);
+                $('#compareTarget').html(options);
+                
+                // Select first two distinct versions if available
+                if(allVersions.length > 1) {
+                    $('#compareBase').val(allVersions[1].id); // Previous
+                    $('#compareTarget').val(allVersions[0].id); // Latest
+                    loadDiff();
+                } else if(allVersions.length === 1) {
+                    $('#compareBase').val(allVersions[0].id);
+                    $('#compareTarget').val(allVersions[0].id);
+                    loadDiff();
+                }
+            }
+            
+            $('#doCompareBtn').on('click', function(){
+                loadDiff();
+            });
+            
+            function loadDiff() {
+                var baseId = $('#compareBase').val();
+                var targetId = $('#compareTarget').val();
+                
+                if(!baseId || !targetId) return;
+                
+                // Fetch content
+                $.when(
+                    $.get('/script/api/version/' + baseId),
+                    $.get('/script/api/version/' + targetId)
+                ).done(function(r1, r2){
+                    var v1 = r1[0].data;
+                    var v2 = r2[0].data;
+                    
+                    $('#diffView').mergely('lhs', v1.content || '');
+                    $('#diffView').mergely('rhs', v2.content || '');
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

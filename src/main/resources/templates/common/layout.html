@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content)">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>负屃脚本管理系统</title>
+    <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <script src="//unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <style>
+        /* --- Ant Design Pro Style for Layui --- */
+        
+        /* Variables */
+        :root {
+            --ant-primary: #1890ff;
+            --ant-primary-hover: #40a9ff;
+            --ant-header-bg: #001529;
+            --ant-sidebar-bg: #001529;
+            --ant-sidebar-sub-bg: #000c17;
+            --ant-body-bg: #f0f2f5;
+            --ant-text-main: rgba(0,0,0,0.85);
+            --ant-text-sub: rgba(0,0,0,0.45);
+            --ant-border-color: #f0f0f0;
+        }
+
+        /* Global Reset */
+        body, .layui-layout-body, .layui-body { 
+            background-color: var(--ant-body-bg); 
+            color: var(--ant-text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        }
+
+        /* Header (Dark) */
+        .layui-layout-admin .layui-header {
+            background-color: var(--ant-header-bg);
+            box-shadow: 0 1px 4px rgba(0,21,41,0.08);
+            border-bottom: none;
+            z-index: 1000;
+        }
+        
+        /* Logo Area (Dark to match sidebar) */
+        .layui-layout-admin .layui-logo {
+            background-color: var(--ant-sidebar-bg);
+            color: #fff;
+            font-weight: 600;
+            font-size: 20px;
+            box-shadow: 1px 0 0 0 rgba(255,255,255,0.1); /* Subtle separator */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Top Navigation Text Color (Light) */
+        .layui-nav .layui-nav-item a { color: rgba(255,255,255,0.85); }
+        .layui-nav .layui-nav-item a:hover { color: #fff; }
+        .layui-nav .layui-this:after { background-color: var(--ant-primary); height: 2px; }
+        
+        /* Sidebar (Dark Blue) */
+        .layui-layout-admin .layui-side {
+            background-color: var(--ant-sidebar-bg);
+            box-shadow: 2px 0 8px 0 rgba(29,35,41,0.05);
+        }
+        
+        .layui-nav-tree { background-color: transparent; }
+        
+        /* Sidebar Items */
+        .layui-nav-tree .layui-nav-item a {
+            color: rgba(255,255,255,0.65);
+            height: 40px;
+            line-height: 40px;
+        }
+        .layui-nav-tree .layui-nav-item a:hover {
+            color: #fff;
+        }
+        .layui-nav-tree .layui-nav-itemed > a {
+            color: #fff !important;
+        }
+        
+        /* Submenu Background */
+        .layui-nav-tree .layui-nav-child {
+            background-color: var(--ant-sidebar-sub-bg) !important;
+        }
+        
+        .layui-nav-tree .layui-nav-child a {
+            padding-left: 48px !important;
+        }
+        
+        /* Active State (Blue Background) */
+        .layui-nav-tree .layui-this > a, 
+        .layui-nav-tree .layui-this > a:hover {
+            background-color: var(--ant-primary) !important;
+            color: #fff !important;
+        }
+        
+        /* Remove Layui Bar */
+        .layui-nav-tree .layui-nav-bar { display: none; }
+
+        /* Content Area */
+        .layui-body {
+            top: 60px;
+            padding: 24px;
+        }
+        
+        /* Card Styling */
+        .layui-card {
+            border-radius: 2px;
+            box-shadow: none;
+            border: 1px solid var(--ant-border-color);
+        }
+        .layui-card-header {
+            border-bottom: 1px solid var(--ant-border-color);
+            font-weight: 600;
+            font-size: 16px;
+            padding: 0 24px;
+            height: 56px;
+            line-height: 56px;
+        }
+        .layui-card-body { padding: 24px; }
+
+        /* Buttons (Ant Design Blue) */
+        .layui-btn { 
+            background-color: var(--ant-primary); 
+            border-radius: 2px;
+            height: 32px;
+            line-height: 32px;
+            font-size: 14px;
+        }
+        .layui-btn:hover { opacity: 0.85; }
+        .layui-btn-primary { 
+            background-color: #fff; 
+            border: 1px solid #d9d9d9; 
+            color: var(--ant-text-main);
+        }
+        .layui-btn-primary:hover {
+            border-color: var(--ant-primary);
+            color: var(--ant-primary);
+        }
+        .layui-btn-danger { background-color: #ff4d4f; }
+        .layui-btn-warm { background-color: #faad14; }
+        
+        /* Table Styling */
+        .layui-table-view { border-color: var(--ant-border-color); }
+        .layui-table-header { background-color: #fafafa; }
+        .layui-table th { 
+            font-weight: 500; 
+            color: var(--ant-text-main); 
+            background-color: #fafafa;
+        }
+        
+        /* Form Inputs */
+        .layui-input, .layui-textarea {
+            border: 1px solid #d9d9d9;
+            border-radius: 2px;
+        }
+        .layui-input:hover, .layui-textarea:hover { border-color: var(--ant-primary); }
+        .layui-input:focus, .layui-textarea:focus {
+            border-color: var(--ant-primary);
+            box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+        }
+
+        /* Footer */
+        .layui-layout-admin .layui-footer {
+            background-color: transparent;
+            box-shadow: none;
+            border-top: none;
+            text-align: center;
+            color: var(--ant-text-sub);
+        }
+    </style>
+</head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+    <div class="layui-header">
+        <div class="layui-logo">
+            <i class="layui-icon layui-icon-console" style="font-size: 20px; margin-right: 8px; color: #ff6a00;"></i>
+            负屃脚本管理
+        </div>
+        <ul class="layui-nav layui-layout-left">
+            <li class="layui-nav-item"><a href="/">控制台</a></li>
+        </ul>
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item">
+                <a href="javascript:;">
+                    <i class="layui-icon layui-icon-username" style="margin-right: 5px;"></i>
+                    <span th:text="${#authentication.name}">用户</span>
+                </a>
+                <dl class="layui-nav-child">
+                    <dd><a href="">基本资料</a></dd>
+                    <dd><a href="">安全设置</a></dd>
+                </dl>
+            </li>
+            <li class="layui-nav-item">
+                <form id="logoutForm" action="/logout" method="post" style="display: none;">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                </form>
+                <a href="javascript:document.getElementById('logoutForm').submit();">退出登录</a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="layui-side">
+        <div class="layui-side-scroll">
+            <ul class="layui-nav layui-nav-tree">
+                <li class="layui-nav-item">
+                    <a class="" href="javascript:;"><i class="layui-icon layui-icon-code-circle" style="margin-right: 10px;"></i>脚本中心</a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="/script/list">脚本列表</a></dd>
+                        <dd><a href="/script/add">新建脚本</a></dd>
+                        <dd><a href="/script/audit/list">脚本审核</a></dd>
+                    </dl>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-play" style="margin-right: 10px;"></i>任务执行</a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="/plan/list">执行任务包</a></dd>
+                        <dd><a href="/plan/my">我的待办</a></dd>
+                    </dl>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-set" style="margin-right: 10px;"></i>系统管理</a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="/user/list">用户管理</a></dd>
+                        <dd><a href="/site/list">现场管理</a></dd>
+                        <dd><a href="/dict/list">基础数据</a></dd>
+                    </dl>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="layui-body">
+        <div style="padding: 16px;" th:replace="${content}">
+            <!-- Content will be replaced -->
+        </div>
+    </div>
+
+    <div class="layui-footer">
+        <!-- 底部固定区域 -->
+        Copyright © 2026 负屃脚本管理系统 (Fuxi Script Manager) - All Rights Reserved.
+    </div>
+</div>
+<script>
+    //JavaScript代码区域
+    layui.use(['element', 'jquery'], function(){
+        var element = layui.element;
+        var $ = layui.jquery;
+        
+        // Auto-expand menu based on current URL
+        var currentPath = window.location.pathname;
+        
+        // Handle root path
+        if (currentPath === '/') {
+            // Keep default state or highlight dashboard if exists
+        } else {
+            // Find the link that matches current path
+            var $link = $('.layui-nav-tree a[href="' + currentPath + '"]');
+            
+            if ($link.length > 0) {
+                // Add active class to the link
+                $link.parent().addClass('layui-this');
+                
+                // Expand parent menu items
+                $link.parents('.layui-nav-item').addClass('layui-nav-itemed');
+            }
+        }
+        
+        // Ensure System Management stays open if we are in a sub-page
+        if (currentPath.startsWith('/user/') || currentPath.startsWith('/site/')) {
+            $('.layui-nav-item a:contains("系统管理")').parent().addClass('layui-nav-itemed');
+        }
+    });
+</script>
+</body>
+</html>

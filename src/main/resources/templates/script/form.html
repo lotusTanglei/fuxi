@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>脚本表单</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <link rel="stylesheet" href="//unpkg.com/simplemde/dist/simplemde.min.css">
+    <style>
+        body { padding: 20px; }
+        .CodeMirror { height: 300px; }
+    </style>
+</head>
+<body>
+    <form class="layui-form" action="">
+        <input type="hidden" name="id" th:value="${script.id}">
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">脚本标题</label>
+            <div class="layui-input-block">
+                <input type="text" name="title" required lay-verify="required" placeholder="请输入脚本标题" autocomplete="off" class="layui-input" th:value="${script.title}" th:readonly="${script.status == 'SUBMITTED' || script.status == 'APPROVED'}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">描述</label>
+            <div class="layui-input-block">
+                <input type="text" name="description" placeholder="请输入简要描述" autocomplete="off" class="layui-input" th:value="${script.description}" th:readonly="${script.status == 'SUBMITTED' || script.status == 'APPROVED'}">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <label class="layui-form-label">类型</label>
+                <div class="layui-input-inline">
+                    <select name="type" id="typeSelect" lay-verify="required" th:disabled="${script.status == 'SUBMITTED' || script.status == 'APPROVED'}">
+                        <option value="">请选择类型</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-inline">
+                <label class="layui-form-label">目标环境</label>
+                <div class="layui-input-inline">
+                    <select name="targetEnv" id="envSelect" lay-verify="required" th:disabled="${script.status == 'SUBMITTED' || script.status == 'APPROVED'}">
+                        <option value="">请选择环境</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">脚本内容</label>
+            <div class="layui-input-block">
+                <textarea id="scriptContent" name="content" placeholder="请输入脚本内容" class="layui-textarea" th:text="${script.content}" th:readonly="${script.status == 'SUBMITTED' || script.status == 'APPROVED'}"></textarea>
+            </div>
+        </div>
+        
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">备注</label>
+            <div class="layui-input-block">
+                <textarea name="remark" placeholder="请输入版本备注" class="layui-textarea" th:text="${script.remark}" th:readonly="${script.status == 'SUBMITTED' || script.status == 'APPROVED'}"></textarea>
+            </div>
+        </div>
+        
+        <div class="layui-form-item" th:if="${script.status == null || script.status == 'DRAFT' || script.status == 'REJECTED'}">
+            <div class="layui-input-block">
+                <button class="layui-btn" lay-submit lay-filter="formSubmit">保存</button>
+                <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+            </div>
+        </div>
+    </form>
+    
+    <script src="//unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="//unpkg.com/simplemde/dist/simplemde.min.js"></script>
+    <script>
+        // Initialize SimpleMDE
+        var simplemde = new SimpleMDE({ 
+            element: document.getElementById("scriptContent"),
+            spellChecker: false,
+            status: false,
+            placeholder: "输入脚本内容 (支持 Markdown / SQL / Shell)..."
+        });
+
+        // Readonly mode
+        if (document.getElementById("scriptContent").hasAttribute("readonly")) {
+            simplemde.togglePreview();
+            simplemde.codemirror.options.readOnly = true;
+            // Hide toolbar
+            document.querySelector(".editor-toolbar").style.display = "none";
+        }
+
+        layui.use(['form', 'jquery'], function(){
+            var form = layui.form;
+            var $ = layui.jquery;
+            
+            // Current Values (from server-side rendering)
+            var currentType = "[[${script.type}]]";
+            var currentEnv = "[[${script.targetEnv}]]";
+            
+            // Load Dictionaries
+            function loadDict(category, elemId, selectedValue) {
+                $.get('/dict/api/category/' + category, function(res){
+                    if(res.code === 0){
+                        var html = '<option value="">请选择</option>';
+                        $.each(res.data, function(index, item){
+                            // Only show enabled items or the currently selected one (even if disabled)
+                            if (item.status === 0 || item.code === selectedValue) {
+                                var selected = (item.code === selectedValue) ? 'selected' : '';
+                                html += '<option value="' + item.code + '" ' + selected + '>' + item.label + '</option>';
+                            }
+                        });
+                        $('#' + elemId).html(html);
+                        form.render('select');
+                    }
+                });
+            }
+            
+            loadDict('script_type', 'typeSelect', currentType);
+            loadDict('target_env', 'envSelect', currentEnv);
+            
+            // Listen Submit
+            form.on('submit(formSubmit)', function(data){
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                
+                // Get content from SimpleMDE
+                data.field.content = simplemde.value();
+                
+                $.ajax({
+                    url: '/script/save',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data.field),
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader(header, token);
+                    },
+                    success: function(res) {
+                        if(res.code === 0){
+                            var index = parent.layer.getFrameIndex(window.name); 
+                            parent.layer.close(index);
+                            parent.layer.msg('保存成功');
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    },
+                    error: function() {
+                        layer.msg('请求失败');
+                    }
+                });
+                return false;
+            });
+        });
+    </script>
+</body>
+</html>
