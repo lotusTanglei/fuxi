@@ -65,7 +65,7 @@ public class ScriptController {
     }
 
     @GetMapping("/form")
-    @PreAuthorize("hasAnyRole('DEV', 'LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV', 'LEADER')")
     public String form(@RequestParam(required = false) Long id, Model model) {
         if (id != null) {
             ScriptInfo script = scriptService.getById(id);
@@ -85,7 +85,7 @@ public class ScriptController {
 
     @PostMapping("/save")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('DEV', 'LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV', 'LEADER')")
     public Map<String, Object> save(@RequestBody ScriptInfo script) {
         try {
             if (script.getId() != null) {
@@ -109,7 +109,7 @@ public class ScriptController {
     
     @PostMapping("/submit/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('DEV', 'LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV', 'LEADER')")
     public Map<String, Object> submit(@PathVariable Long id) {
         try {
             scriptService.submitScript(id);
@@ -128,7 +128,7 @@ public class ScriptController {
     
     @PostMapping("/delete/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('DEV', 'LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV', 'LEADER')")
     public Map<String, Object> delete(@PathVariable Long id) {
         boolean success = scriptService.removeById(id);
         Map<String, Object> map = new HashMap<>();
@@ -140,14 +140,14 @@ public class ScriptController {
     // --- Audit APIs ---
 
     @GetMapping("/audit/list")
-    @PreAuthorize("hasRole('LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER')")
     public String auditList() {
         return "script/audit";
     }
 
     @GetMapping("/api/audit/list")
     @ResponseBody
-    @PreAuthorize("hasRole('LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER')")
     public Map<String, Object> apiAuditList(@RequestParam(defaultValue = "1") Integer page,
                                             @RequestParam(defaultValue = "10") Integer limit) {
         Page<ScriptVersion> pageParam = new Page<>(page, limit);
@@ -184,7 +184,7 @@ public class ScriptController {
     
     @PostMapping("/audit/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER')")
     public Map<String, Object> audit(@PathVariable Long id, @RequestBody Map<String, Object> params) {
         boolean pass = (boolean) params.get("pass");
         String remark = (String) params.get("remark");

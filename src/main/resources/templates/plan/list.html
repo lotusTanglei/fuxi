@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="~{common/layout :: layout(~{::div})}">
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{common/layout :: layout(~{::div})}">
 <body>
 <div>
     <div class="layui-card">
@@ -14,7 +16,7 @@
                         <i class="layui-icon layui-icon-search"></i> 搜索
                     </button>
                 </div>
-                <div sec:authorize="hasAnyRole('OPS', 'LEADER')">
+                <div sec:authorize="hasAnyRole('ADMIN', 'LEADER')">
                     <a href="/plan/form" class="layui-btn layui-btn-normal">
                         <i class="layui-icon layui-icon-add-1"></i> 新建任务包
                     </a>

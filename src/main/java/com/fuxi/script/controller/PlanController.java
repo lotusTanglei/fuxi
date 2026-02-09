@@ -52,7 +52,7 @@ public class PlanController {
     }
 
     @GetMapping("/form")
-    @PreAuthorize("hasAnyRole('OPS', 'LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER')")
     public String form(@RequestParam(required = false) Long id, Model model) {
         if (id != null) {
             model.addAttribute("plan", planService.getById(id));
@@ -71,7 +71,7 @@ public class PlanController {
 
     @PostMapping("/save")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('OPS', 'LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER')")
     public Map<String, Object> save(@RequestBody PlanRequest request) {
         try {
             if (request.getPlan().getId() != null) {
@@ -110,7 +110,7 @@ public class PlanController {
 
     @PostMapping("/execute/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OPS')")
     public Map<String, Object> execute(@PathVariable Long id) {
         try {
             planService.executePlan(id);
@@ -129,7 +129,7 @@ public class PlanController {
     
     @PostMapping("/verify/{itemId}")
     @ResponseBody
-    @PreAuthorize("hasRole('LEADER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER', 'TEST')")
     public Map<String, Object> verify(@PathVariable Long itemId, @RequestBody Map<String, Object> params) {
         boolean pass = (boolean) params.get("pass");
         String remark = (String) params.get("remark");

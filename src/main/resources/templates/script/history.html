@@ -39,22 +39,27 @@
     </div>
 
     <!-- Load jQuery for Mergely -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/jquery@3.6.0/dist/jquery.min.js"></script>
     
     <!-- Load Mergely for Diff -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mergely/4.3.9/mergely.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mergely/4.3.9/mergely.min.css">
+    <script src="https://unpkg.com/codemirror@5.32.0/lib/codemirror.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/codemirror@5.32.0/lib/codemirror.css">
+    <script src="https://unpkg.com/codemirror@5.32.0/addon/search/searchcursor.js"></script>
+    <script src="https://unpkg.com/mergely@3.4.0/lib/mergely.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/mergely@3.4.0/lib/mergely.css">
     
     <style>
         /* Custom styles to make it look more like Beyond Compare */
         .CodeMirror {
             line-height: 1.5;
             font-family: Consolas, "Courier New", monospace;
+            height: 100%; /* Ensure CodeMirror fills the container */
         }
         .mergely-column .CodeMirror {
             height: 100%;
+        }
+        #diffView {
+            height: 600px; /* Increase height */
         }
     </style>
 
@@ -69,33 +74,16 @@
             var scriptId = [[${script.id}]];
             var allVersions = [];
             
-            // Init Mergely
-            // Note: Mergely usage might need to be adjusted based on the specific version or wrapper.
-            // If Mergely is not defined, check CDN or script loading order.
-            // Using a simple check to ensure it's loaded.
-            
-            var mergelyInstance;
-            
             function initMergely() {
-                $('#diffView').empty(); // Clear previous instance if any
+                $('#diffView').empty(); 
                 $('#diffView').mergely({
-                    lhs: function(setValue) {
-                        setValue('Select a version to compare');
-                    },
-                    rhs: function(setValue) {
-                        setValue('Select a version to compare');
-                    },
                     cmsettings: { 
                         readOnly: true, 
-                        lineNumbers: true,
-                        mode: 'text/x-sh' // Default to shell script mode
+                        lineNumbers: true
                     },
-                    // Enable line wrapping for better visibility
-                    wrap_lines: true,
-                    // Auto-resize
                     autoresize: true,
-                    // Viewport options
-                    viewport: true
+                    editor_width: '48%',
+                    editor_height: '100%'
                 });
             }
             
@@ -174,6 +162,11 @@
                     
                     $('#diffView').mergely('lhs', v1.content || '');
                     $('#diffView').mergely('rhs', v2.content || '');
+                    
+                    // Force resize after loading content
+                    setTimeout(function(){
+                        $('#diffView').mergely('resize');
+                    }, 100);
                 });
             }
         });

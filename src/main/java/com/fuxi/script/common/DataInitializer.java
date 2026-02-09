@@ -69,6 +69,9 @@ public class DataInitializer implements CommandLineRunner {
         
         // 6. Initialize Leader User
         createDefaultUser("leader", "Team Leader", "LEADER", defaultSite);
+        
+        // 7. Initialize Test User
+        createDefaultUser("test", "QA Engineer", "TEST", defaultSite);
     }
 
     private void createDefaultUser(String username, String realName, String role, SysSite defaultSite) {

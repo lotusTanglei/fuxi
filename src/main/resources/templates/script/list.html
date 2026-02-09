@@ -17,7 +17,7 @@
                         <i class="layui-icon layui-icon-search"></i> 搜索
                     </button>
                 </div>
-                <div sec:authorize="hasAnyRole('ADMIN', 'DEV')">
+                <div sec:authorize="hasAnyRole('ADMIN', 'DEV', 'LEADER')">
                     <button type="button" class="layui-btn layui-btn-normal" id="addBtn">
                         <i class="layui-icon layui-icon-add-1"></i> 新建脚本
                     </button>
@@ -34,7 +34,7 @@
                 {{#  } else if(d.status === 'APPROVED'){ }}
                     <span class="layui-badge layui-bg-green">已通过</span>
                 {{#  } else if(d.status === 'REJECTED'){ }}
-                    <span class="layui-badge">已拒绝</span>
+                    <span class="layui-badge" lay-tips="{{ d.remark || '无拒绝原因' }}" style="cursor: pointer;">已拒绝 <i class="layui-icon layui-icon-about"></i></span>
                 {{#  } }}
             </script>
             
@@ -143,6 +143,18 @@
                         layer.close(index);
                     });
                 }
+            });
+            
+            // Listen for mouseover on tips
+            $(document).on('mouseenter', '*[lay-tips]', function(){
+                var content = $(this).attr('lay-tips');
+                if(!content) return;
+                this.index = layer.tips(content, this, {
+                    time: -1,
+                    tips: [1, '#333']
+                });
+            }).on('mouseleave', '*[lay-tips]', function(){
+                layer.close(this.index);
             });
             
             function openForm(id) {

@@ -42,9 +42,10 @@
                 <input type="checkbox" name="roles" value="ADMIN" title="系统管理员" lay-skin="primary">
                 <input type="checkbox" name="roles" value="DEV" title="开发工程师" lay-skin="primary">
                 <input type="checkbox" name="roles" value="OPS" title="运维工程师" lay-skin="primary">
-                <input type="checkbox" name="roles" value="LEADER" title="技术主管" lay-skin="primary">
-                
-                <!-- Hidden input to store comma-separated string -->
+            <input type="checkbox" name="roles" value="LEADER" title="技术主管" lay-skin="primary">
+            <input type="checkbox" name="roles" value="TEST" title="测试人员" lay-skin="primary">
+            
+            <!-- Hidden input to store comma-separated string -->
                 <input type="hidden" name="role" id="roleInput" th:value="${user.role}">
             </div>
         </div>

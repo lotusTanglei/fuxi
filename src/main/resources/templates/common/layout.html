@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content)">
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:fragment="layout(content)">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -202,22 +204,21 @@
     <div class="layui-side">
         <div class="layui-side-scroll">
             <ul class="layui-nav layui-nav-tree">
-                <li class="layui-nav-item">
+                <li class="layui-nav-item" sec:authorize="hasAnyRole('ADMIN', 'DEV', 'LEADER', 'TEST')">
                     <a class="" href="javascript:;"><i class="layui-icon layui-icon-code-circle" style="margin-right: 10px;"></i>脚本中心</a>
                     <dl class="layui-nav-child">
                         <dd><a href="/script/list">脚本列表</a></dd>
-                        <dd><a href="/script/add">新建脚本</a></dd>
-                        <dd><a href="/script/audit/list">脚本审核</a></dd>
+                        <dd sec:authorize="hasAnyRole('ADMIN', 'LEADER')"><a href="/script/audit/list">脚本审核</a></dd>
                     </dl>
                 </li>
-                <li class="layui-nav-item">
+                <li class="layui-nav-item" sec:authorize="hasAnyRole('ADMIN', 'DEV', 'OPS', 'LEADER', 'TEST')">
                     <a href="javascript:;"><i class="layui-icon layui-icon-play" style="margin-right: 10px;"></i>任务执行</a>
                     <dl class="layui-nav-child">
                         <dd><a href="/plan/list">执行任务包</a></dd>
                         <dd><a href="/plan/my">我的待办</a></dd>
                     </dl>
                 </li>
-                <li class="layui-nav-item">
+                <li class="layui-nav-item" sec:authorize="hasRole('ADMIN')">
                     <a href="javascript:;"><i class="layui-icon layui-icon-set" style="margin-right: 10px;"></i>系统管理</a>
                     <dl class="layui-nav-child">
                         <dd><a href="/user/list">用户管理</a></dd>
