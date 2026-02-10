@@ -8,6 +8,7 @@ import com.fuxi.script.service.PlanService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
@@ -17,12 +18,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fuxi.script.entity.SysUser;
+import com.fuxi.script.service.SysUserService;
+
 @Controller
 @RequestMapping("/plan")
 @RequiredArgsConstructor
 public class PlanController {
 
     private final PlanService planService;
+    private final SysUserService sysUserService;
 
     @GetMapping("/list")
     public String list() {
@@ -60,6 +65,12 @@ public class PlanController {
         } else {
             model.addAttribute("plan", new ExecutionPlan());
         }
+        
+        // Load candidates for roles
+        model.addAttribute("opsUsers", sysUserService.list(new LambdaQueryWrapper<SysUser>().like(SysUser::getRole, "OPS")));
+        model.addAttribute("leaderUsers", sysUserService.list(new LambdaQueryWrapper<SysUser>().like(SysUser::getRole, "LEADER")));
+        model.addAttribute("testUsers", sysUserService.list(new LambdaQueryWrapper<SysUser>().like(SysUser::getRole, "TEST")));
+        
         return "plan/form";
     }
 
@@ -113,6 +124,20 @@ public class PlanController {
     @PreAuthorize("hasAnyRole('ADMIN', 'OPS')")
     public Map<String, Object> execute(@PathVariable Long id) {
         try {
+            // Check assignment permissions
+            ExecutionPlan plan = planService.getById(id);
+            if (plan != null) {
+                String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+                SysUser currentUser = sysUserService.getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, currentUsername));
+                
+                boolean isAssignedOps = plan.getAssignedOpsId() != null && plan.getAssignedOpsId().equals(currentUser.getId());
+                boolean isAdmin = "ADMIN".equals(currentUser.getRole()) || currentUser.getRole().contains("ADMIN");
+                
+                if (!isAssignedOps && !isAdmin) {
+                    throw new RuntimeException("Permission Denied: You are not the assigned OPS for this plan.");
+                }
+            }
+            
             planService.executePlan(id);
             Map<String, Object> map = new HashMap<>();
             map.put("code", 0);
@@ -135,15 +160,6 @@ public class PlanController {
         String remark = (String) params.get("remark");
         
         try {
-            // We need a method in PlanService to handle verification
-            // planService.verifyItem(itemId, pass, remark);
-            // I'll add this method to PlanService next
-            
-            // For now, let's implement it directly or assume service update is coming
-            // I will update PlanService first/next.
-            // Wait, I should update Service first. But I can't in this tool call.
-            // I'll leave a placeholder here and fix it in next steps.
-            
             planService.verifyItem(itemId, pass, remark);
             
             Map<String, Object> map = new HashMap<>();

@@ -39,6 +39,35 @@
         </div>
         
         <div class="layui-form-item">
+            <label class="layui-form-label">指定人员</label>
+            <div class="layui-input-block">
+                <div class="layui-row layui-col-space10">
+                    <div class="layui-col-md4">
+                        <label class="layui-form-label" style="width: auto; padding-left: 0;">执行人 (OPS)</label>
+                        <select name="assignedOpsId" lay-verify="required">
+                            <option value="">请选择运维人员</option>
+                            <option th:each="user : ${opsUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedOpsId == user.id}"></option>
+                        </select>
+                    </div>
+                    <div class="layui-col-md4">
+                        <label class="layui-form-label" style="width: auto; padding-left: 0;">验证人 (LEADER)</label>
+                        <select name="assignedLeaderId" lay-verify="required">
+                            <option value="">请选择主管人员</option>
+                            <option th:each="user : ${leaderUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedLeaderId == user.id}"></option>
+                        </select>
+                    </div>
+                    <div class="layui-col-md4">
+                        <label class="layui-form-label" style="width: auto; padding-left: 0;">验证人 (TEST)</label>
+                        <select name="assignedTestId" lay-verify="required">
+                            <option value="">请选择测试人员</option>
+                            <option th:each="user : ${testUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedTestId == user.id}"></option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
             <label class="layui-form-label">脚本列表</label>
             <div class="layui-input-block">
                 <div style="margin-bottom: 10px;">

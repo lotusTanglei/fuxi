@@ -166,11 +166,29 @@ public class DatabaseMigration implements CommandLineRunner {
                         "created_by VARCHAR(50), " +
                         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, " +
                         "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, " +
+                        "assigned_ops_id BIGINT, " +
+                        "assigned_leader_id BIGINT, " +
+                        "assigned_test_id BIGINT, " +
                         "is_deleted INT DEFAULT 0" +
                         ")");
             } catch (Exception ex) {
                 log.warn("Failed to create execution_plan table: {}", ex.getMessage());
             }
+        }
+        
+        // Check for assigned user columns in execution_plan if table exists
+        try {
+            jdbcTemplate.queryForObject("SELECT 1 FROM execution_plan LIMIT 1", (rs, rowNum) -> null);
+            try {
+                jdbcTemplate.queryForObject("SELECT assigned_ops_id FROM execution_plan LIMIT 1", (rs, rowNum) -> null);
+            } catch (Exception ex) {
+                log.info("Adding assigned user columns to execution_plan table...");
+                jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_ops_id BIGINT");
+                jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_leader_id BIGINT");
+                jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_test_id BIGINT");
+            }
+        } catch (Exception e) {
+            // Table creation handled above
         }
 
         // Check execution_plan_item table

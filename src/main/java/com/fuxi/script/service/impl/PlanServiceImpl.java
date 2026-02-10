@@ -2,14 +2,8 @@ package com.fuxi.script.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fuxi.script.entity.ExecutionPlan;
-import com.fuxi.script.entity.ExecutionPlanItem;
-import com.fuxi.script.entity.ScriptInfo;
-import com.fuxi.script.entity.ScriptVersion;
-import com.fuxi.script.mapper.ExecutionPlanItemMapper;
-import com.fuxi.script.mapper.ExecutionPlanMapper;
-import com.fuxi.script.mapper.ScriptInfoMapper;
-import com.fuxi.script.mapper.ScriptVersionMapper;
+import com.fuxi.script.entity.*;
+import com.fuxi.script.mapper.*;
 import com.fuxi.script.service.PlanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +23,7 @@ public class PlanServiceImpl extends ServiceImpl<ExecutionPlanMapper, ExecutionP
     private final ExecutionPlanItemMapper planItemMapper;
     private final ScriptVersionMapper scriptVersionMapper;
     private final ScriptInfoMapper scriptInfoMapper;
+    private final SysUserMapper sysUserMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -128,9 +123,22 @@ public class PlanServiceImpl extends ServiceImpl<ExecutionPlanMapper, ExecutionP
     public void verifyItem(Long itemId, boolean pass, String remark) {
         ExecutionPlanItem item = planItemMapper.selectById(itemId);
         if (item != null) {
+            // Check assignment
+            ExecutionPlan plan = this.getById(item.getPlanId());
+            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            SysUser currentUser = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, currentUsername));
+            
+            boolean isAssignedLeader = plan.getAssignedLeaderId() != null && plan.getAssignedLeaderId().equals(currentUser.getId());
+            boolean isAssignedTest = plan.getAssignedTestId() != null && plan.getAssignedTestId().equals(currentUser.getId());
+            boolean isAdmin = "ADMIN".equals(currentUser.getRole()) || currentUser.getRole().contains("ADMIN"); // Simple check
+            
+            if (!isAssignedLeader && !isAssignedTest && !isAdmin) {
+                throw new RuntimeException("Permission Denied: You are not the assigned LEADER or TEST for this plan.");
+            }
+            
             item.setVerifyStatus(pass ? "PASS" : "FAIL");
             item.setVerifyRemark(remark);
-            item.setVerifiedBy(SecurityContextHolder.getContext().getAuthentication().getName());
+            item.setVerifiedBy(currentUsername);
             item.setVerifiedAt(LocalDateTime.now());
             planItemMapper.updateById(item);
         }

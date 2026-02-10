@@ -15,6 +15,11 @@ public class ExecutionPlan {
     private String targetSite;
     private String status; // DRAFT, PENDING, APPROVED, REJECTED, COMPLETED
     
+    // Assigned Roles
+    private Long assignedOpsId;
+    private Long assignedLeaderId;
+    private Long assignedTestId;
+    
     private String createdBy;
     
     @TableField(fill = FieldFill.INSERT)
