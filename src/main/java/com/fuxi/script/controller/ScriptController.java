@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fuxi.script.entity.ScriptInfo;
 import com.fuxi.script.entity.ScriptVersion;
+import com.fuxi.script.entity.SysUser;
 import com.fuxi.script.service.ScriptService;
+import com.fuxi.script.service.SysUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public class ScriptController {
 
     private final ScriptService scriptService;
+    private final SysUserService sysUserService;
 
     @GetMapping("/list")
     public String list() {
@@ -62,6 +65,13 @@ public class ScriptController {
                 script.setRemark(latest.getRemark());
                 script.setLatestVersionId(latest.getId());
             }
+            
+            // Resolve Creator Real Name
+            if (StringUtils.hasText(script.getCreatedBy())) {
+                SysUser user = sysUserService.getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, script.getCreatedBy()));
+                script.setCreatorRealName(user != null ? user.getRealName() : script.getCreatedBy());
+            }
+            
             return script;
         }).filter(script -> {
             if (StringUtils.hasText(status)) {
@@ -188,7 +198,16 @@ public class ScriptController {
             map.put("versionNum", v.getVersionNum());
             map.put("content", v.getContent());
             map.put("remark", v.getRemark());
-            map.put("createdBy", v.getCreatedBy());
+            
+            // Resolve Real Name
+            String createdBy = v.getCreatedBy();
+            if (StringUtils.hasText(createdBy)) {
+                SysUser user = sysUserService.getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, createdBy));
+                map.put("createdBy", user != null ? user.getRealName() : createdBy);
+            } else {
+                map.put("createdBy", "");
+            }
+            
             map.put("createdAt", v.getCreatedAt());
             
             ScriptInfo info = scriptService.getById(v.getScriptId());

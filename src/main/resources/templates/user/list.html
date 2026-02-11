@@ -25,6 +25,7 @@
             
             <script type="text/html" id="barDemo">
                 <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+                <a class="layui-btn layui-btn-warm layui-btn-xs" lay-event="resetPwd">重置密码</a>
                 <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
             </script>
         </div>
@@ -50,7 +51,7 @@
                         {field: 'siteName', title: '归属现场', width: 150},
                         {field: 'groupName', title: '归属用户组', width: 150},
                         {field: 'createdAt', title: '创建时间', width: 180},
-                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 150}
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 220}
                     ]
                 ],
                 page: true
@@ -97,6 +98,35 @@
                     });
                 } else if(obj.event === 'edit'){
                     openForm(data.id);
+                } else if(obj.event === 'resetPwd'){
+                    layer.prompt({
+                        formType: 1, // password input
+                        title: '请输入新密码',
+                    }, function(value, index, elem){
+                        var token = $("meta[name='_csrf']").attr("content");
+                        var header = $("meta[name='_csrf_header']").attr("content");
+                        
+                        $.ajax({
+                            url: '/user/reset-password',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ userId: data.id, newPassword: value }),
+                            beforeSend: function(xhr) {
+                                xhr.setRequestHeader(header, token);
+                            },
+                            success: function(res){
+                                if(res.code === 0){
+                                    layer.msg('密码重置成功');
+                                    layer.close(index);
+                                } else {
+                                    layer.msg(res.msg);
+                                }
+                            },
+                            error: function(){
+                                layer.msg('请求失败');
+                            }
+                        });
+                    });
                 }
             });
             

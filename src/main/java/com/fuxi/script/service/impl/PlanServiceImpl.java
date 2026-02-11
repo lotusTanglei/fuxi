@@ -30,6 +30,10 @@ public class PlanServiceImpl extends ServiceImpl<ExecutionPlanMapper, ExecutionP
     public void createPlan(ExecutionPlan plan, List<Long> scriptVersionIds) {
         // Initial status is PENDING to be ready for OPS execution
         plan.setStatus("PENDING");
+        // Set creator
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        plan.setCreatedBy(currentUsername);
+        
         this.save(plan);
         
         savePlanItems(plan.getId(), scriptVersionIds);
@@ -153,16 +157,37 @@ public class PlanServiceImpl extends ServiceImpl<ExecutionPlanMapper, ExecutionP
                     ScriptInfo script = scriptInfoMapper.selectById(version.getScriptId());
                     if (script != null) {
                         map.put("scriptTitle", script.getTitle());
+                        
+                        // Resolve Real Name for Script Creator
+                        String createdBy = script.getCreatedBy();
+                        if (createdBy != null && !createdBy.isEmpty()) {
+                            SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, createdBy));
+                            map.put("scriptCreatedBy", user != null ? user.getRealName() : createdBy);
+                        } else {
+                            map.put("scriptCreatedBy", "");
+                        }
+                        
+                        map.put("scriptType", script.getType());
+                        map.put("scriptTargetEnv", script.getTargetEnv());
                     } else {
                          map.put("scriptTitle", "Unknown Script (ID: " + version.getScriptId() + ")");
+                         map.put("scriptCreatedBy", "Unknown");
+                         map.put("scriptType", "Unknown");
+                         map.put("scriptTargetEnv", "Unknown");
                     }
                 } else {
                     map.put("versionNum", "Unknown");
                     map.put("scriptTitle", "Unknown Version");
+                    map.put("scriptCreatedBy", "Unknown");
+                    map.put("scriptType", "Unknown");
+                    map.put("scriptTargetEnv", "Unknown");
                 }
             } catch (Exception e) {
                 map.put("scriptTitle", "Error fetching info");
                 map.put("versionNum", "Error");
+                map.put("scriptCreatedBy", "Error");
+                map.put("scriptType", "Error");
+                map.put("scriptTargetEnv", "Error");
             }
             return map;
         }).collect(java.util.stream.Collectors.toList());
@@ -230,6 +255,24 @@ public class PlanServiceImpl extends ServiceImpl<ExecutionPlanMapper, ExecutionP
             }
             plan.setStatus("COMPLETED");
             this.updateById(plan);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePlan(Long planId) {
+        ExecutionPlan plan = this.getById(planId);
+        if (plan != null) {
+            // Logical delete plan
+            this.removeById(planId);
+            // Logical delete items is handled by MyBatis Plus logic delete if configured,
+            // otherwise we might need to manually delete them.
+            // Assuming execution_plan has logic delete, items might not.
+            // Let's delete items physically or logically.
+            // Given the schema has is_deleted for execution_plan, but items table doesn't seem to have it in the create script above?
+            // Let's check schema.sql again.
+            // execution_plan_item does NOT have is_deleted. So we should physically delete items.
+            planItemMapper.delete(new LambdaQueryWrapper<ExecutionPlanItem>().eq(ExecutionPlanItem::getPlanId, planId));
         }
     }
 }

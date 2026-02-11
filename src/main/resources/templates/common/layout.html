@@ -97,6 +97,25 @@
         
         /* Remove Layui Bar */
         .layui-nav-tree .layui-nav-bar { display: none; }
+        
+        /* Fix Top Navigation Dropdown (White background, Black text) */
+        .layui-layout-right .layui-nav-child {
+            background-color: #fff !important;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border: none;
+        }
+        .layui-layout-right .layui-nav-child dd.layui-this {
+            background-color: #e6f7ff;
+        }
+        .layui-layout-right .layui-nav-child a {
+            color: var(--ant-text-main) !important;
+            line-height: 36px;
+        }
+        .layui-layout-right .layui-nav-child a:hover {
+            background-color: #f5f5f5;
+            color: var(--ant-primary) !important;
+        }
 
         /* Content Area */
         .layui-body {
@@ -188,8 +207,8 @@
                     <span th:text="${#authentication.name}">用户</span>
                 </a>
                 <dl class="layui-nav-child">
-                    <dd><a href="">基本资料</a></dd>
-                    <dd><a href="">安全设置</a></dd>
+                    <dd><a href="/profile/info">基本资料</a></dd>
+                    <dd><a href="/profile/security">安全设置</a></dd>
                 </dl>
             </li>
             <li class="layui-nav-item">

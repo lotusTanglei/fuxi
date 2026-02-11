@@ -52,4 +52,9 @@ public interface PlanService extends IService<ExecutionPlan> {
      * Finalize plan (LEADER)
      */
     void finalizePlan(Long planId);
+
+    /**
+     * Delete plan (Logical Delete)
+     */
+    void deletePlan(Long planId);
 }

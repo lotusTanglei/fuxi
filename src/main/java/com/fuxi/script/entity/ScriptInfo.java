@@ -41,4 +41,7 @@ public class ScriptInfo {
     
     @TableField(exist = false)
     private Long latestVersionId;
+    
+    @TableField(exist = false)
+    private String creatorRealName;
 }

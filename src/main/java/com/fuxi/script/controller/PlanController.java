@@ -48,11 +48,31 @@ public class PlanController {
         
         Page<ExecutionPlan> result = planService.page(pageParam, wrapper);
         
+        // Enrich with Real Name for CreatedBy
+        List<Map<String, Object>> records = result.getRecords().stream().map(plan -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", plan.getId());
+            map.put("title", plan.getTitle());
+            map.put("targetSite", plan.getTargetSite());
+            map.put("status", plan.getStatus());
+            map.put("createdAt", plan.getCreatedAt());
+            
+            // Resolve Real Name
+            String createdBy = plan.getCreatedBy();
+            if (StringUtils.hasText(createdBy)) {
+                SysUser user = sysUserService.getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, createdBy));
+                map.put("createdBy", user != null ? user.getRealName() : createdBy);
+            } else {
+                map.put("createdBy", "");
+            }
+            return map;
+        }).collect(java.util.stream.Collectors.toList());
+        
         Map<String, Object> map = new HashMap<>();
         map.put("code", 0);
         map.put("msg", "");
         map.put("count", result.getTotal());
-        map.put("data", result.getRecords());
+        map.put("data", records);
         return map;
     }
 
@@ -85,6 +105,25 @@ public class PlanController {
     public Map<String, Object> save(@RequestBody PlanRequest request) {
         try {
             if (request.getPlan().getId() != null) {
+                // Check permissions for update
+                ExecutionPlan existingPlan = planService.getById(request.getPlan().getId());
+                if (existingPlan == null) {
+                    throw new RuntimeException("任务包不存在");
+                }
+                
+                // If not DRAFT, check strict permission: Only Creator or Admin can edit
+                if (!"DRAFT".equals(existingPlan.getStatus())) {
+                     String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+                     SysUser currentUser = sysUserService.getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, currentUsername));
+                     
+                     boolean isAdmin = "ADMIN".equals(currentUser.getRole());
+                     boolean isCreator = existingPlan.getCreatedBy() != null && existingPlan.getCreatedBy().equals(currentUsername);
+                     
+                     if (!isAdmin && !isCreator) {
+                         throw new RuntimeException("Permission Denied: 只有创建人(Leader)或管理员可以编辑已提交的任务包");
+                     }
+                }
+                
                 planService.updatePlan(request.getPlan(), request.getScriptVersionIds());
             } else {
                 planService.createPlan(request.getPlan(), request.getScriptVersionIds());
@@ -274,6 +313,25 @@ public class PlanController {
             Map<String, Object> map = new HashMap<>();
             map.put("code", 1);
             map.put("msg", "结项失败: " + e.getMessage());
+            return map;
+        }
+    }
+
+    @PostMapping("/delete/{id}")
+    @ResponseBody
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER')")
+    public Map<String, Object> deletePlan(@PathVariable Long id) {
+        try {
+            planService.deletePlan(id);
+            Map<String, Object> map = new HashMap<>();
+            map.put("code", 0);
+            map.put("msg", "删除成功");
+            return map;
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> map = new HashMap<>();
+            map.put("code", 1);
+            map.put("msg", "删除失败: " + e.getMessage());
             return map;
         }
     }

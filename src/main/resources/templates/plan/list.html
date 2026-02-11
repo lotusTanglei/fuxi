@@ -27,8 +27,10 @@
             
             <script type="text/html" id="barDemo">
                 <a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>
-                {{#  if(d.status === 'DRAFT'){ }}
+                {{#  if(d.status === 'DRAFT' || d.status === 'PENDING'){ }}
                     <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit">编辑</a>
+                {{#  } }}
+                {{#  if(d.status === 'DRAFT'){ }}
                     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
                 {{#  } }}
             </script>
@@ -80,10 +82,36 @@
             // Tool Bar
             table.on('tool(planTable)', function(obj){
                 var data = obj.data;
+                var currentUsername = "[[${#authentication.name}]]"; // This will be rendered server-side
+                // However, getting current user in JS is better done via API or meta tag if not using thymeleaf inline here cleanly.
+                // But wait, this is a thymeleaf template, so [[...]] works.
+                // Actually, let's just enable the Edit button for PENDING too, and let backend handle permission.
+                // The requirements say "pending execution script packages need edit function".
+                
                 if(obj.event === 'del'){
+                    // ... (existing del logic)
                     layer.confirm('真的删除该任务包吗？', function(index){
-                        // TODO: Implement delete API
-                        layer.msg('暂未实现删除');
+                        var token = $("meta[name='_csrf']").attr("content");
+                        var header = $("meta[name='_csrf_header']").attr("content");
+                        
+                        $.ajax({
+                            url: '/plan/delete/' + data.id,
+                            type: 'POST',
+                            beforeSend: function(xhr) {
+                                if(header && token) xhr.setRequestHeader(header, token);
+                            },
+                            success: function(res){
+                                if(res.code === 0){
+                                    obj.del();
+                                    layer.msg('删除成功');
+                                } else {
+                                    layer.msg(res.msg);
+                                }
+                            },
+                            error: function(){
+                                layer.msg('删除请求失败');
+                            }
+                        });
                         layer.close(index);
                     });
                 } else if(obj.event === 'edit'){

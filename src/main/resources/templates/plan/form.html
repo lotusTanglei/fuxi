@@ -157,15 +157,15 @@
             if (planId) {
                 $.get('/plan/api/items/' + planId, function(res){
                     if(res.code === 0 && res.data) {
-                        // We need to fetch script details for these items
-                        // For simplicity, let's assume we fetch them or the API returns enriched data.
-                        // Wait, planService.getPlanItems returns ExecutionPlanItem which has scriptVersionId.
-                        // We need the script title and versionNum.
-                        // I'll make a separate call or update the API.
-                        // For now, let's try to mock it or assume the user will re-add them if needed? 
-                        // No, that's bad UX.
-                        // Let's rely on the user adding scripts for now, or improve the API later.
-                        // Actually, I should update the API to return DTOs with script info.
+                        // Map API data to local structure
+                        selectedScripts = res.data.map(function(item){
+                            return {
+                                id: item.scriptVersionId,
+                                title: item.scriptTitle,
+                                versionNum: item.versionNum
+                            };
+                        });
+                        table.reload('selectedScriptsTable', {data: selectedScripts});
                     }
                 });
             }

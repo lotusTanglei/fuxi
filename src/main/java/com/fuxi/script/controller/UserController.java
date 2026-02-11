@@ -114,6 +114,36 @@ public class UserController {
         }
     }
     
+    @PostMapping("/reset-password")
+    @ResponseBody
+    public Map<String, Object> resetPassword(@RequestBody Map<String, Object> params) {
+        Long userId = Long.valueOf(params.get("userId").toString());
+        String newPassword = (String) params.get("newPassword");
+        
+        SysUser user = sysUserService.getById(userId);
+        if (user == null) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("code", 1);
+            map.put("msg", "用户不存在");
+            return map;
+        }
+        
+        user.setPassword(newPassword);
+        try {
+            sysUserService.updateUser(user);
+            Map<String, Object> map = new HashMap<>();
+            map.put("code", 0);
+            map.put("msg", "重置成功");
+            return map;
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> map = new HashMap<>();
+            map.put("code", 1);
+            map.put("msg", "重置失败: " + e.getMessage());
+            return map;
+        }
+    }
+    
     @PostMapping("/delete/{id}")
     @ResponseBody
     public Map<String, Object> delete(@PathVariable Long id) {
