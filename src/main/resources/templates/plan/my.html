@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{common/layout :: layout(~{::div})}">
+<body>
+<div>
+    <div class="layui-card">
+        <div class="layui-card-header">我的待办</div>
+        <div class="layui-card-body">
+            <table id="myPlanTable" lay-filter="myPlanTable"></table>
+            
+            <script type="text/html" id="barDemo">
+                <a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>
+                
+                {{#  if(d.status === 'PENDING'){ }}
+                    <!-- OPS Action: Start Execution -->
+                    <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="execute">执行</a>
+                {{#  } }}
+                
+                {{#  if(d.status === 'RUNNING'){ }}
+                    <!-- OPS Action: Submit Receipt -->
+                    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="receipt">回执</a>
+                {{#  } }}
+                
+                {{#  if(d.status === 'VERIFYING_TEST'){ }}
+                    <!-- TEST Action -->
+                    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="verify_test">验证</a>
+                {{#  } }}
+                
+                {{#  if(d.status === 'VERIFYING_LEADER'){ }}
+                    <!-- LEADER Action -->
+                    <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="finalize">结项</a>
+                {{#  } }}
+            </script>
+        </div>
+    </div>
+
+    <script>
+        layui.use(['table', 'layer', 'form', 'jquery'], function(){
+            var table = layui.table;
+            var layer = layui.layer;
+            var $ = layui.jquery;
+            
+            // Render Table
+            table.render({
+                id: 'myPlanTable',
+                elem: '#myPlanTable',
+                url: '/plan/api/my',
+                cols: [
+                    [
+                        {type: 'numbers', title: '序号', width: 80},
+                        {field: 'title', title: '任务标题', width: 200},
+                        {field: 'targetSite', title: '目标现场', width: 150},
+                        {field: 'status', title: '状态', width: 150, templet: function(d){
+                            if(d.status === 'PENDING') return '<span class="layui-badge layui-bg-orange">待执行</span>';
+                            if(d.status === 'RUNNING') return '<span class="layui-badge layui-bg-blue">执行中</span>';
+                            if(d.status === 'VERIFYING_TEST') return '<span class="layui-badge layui-bg-cyan">待测试验证</span>';
+                            if(d.status === 'VERIFYING_LEADER') return '<span class="layui-badge layui-bg-blue">待主管结项</span>';
+                            if(d.status === 'COMPLETED') return '<span class="layui-badge layui-bg-green">已完成</span>';
+                            return d.status;
+                        }},
+                        {field: 'createdAt', title: '创建时间', width: 180},
+                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 200}
+                    ]
+                ],
+                page: true
+            });
+            
+            // Tool Bar
+            table.on('tool(myPlanTable)', function(obj){
+                var data = obj.data;
+                if(obj.event === 'detail'){
+                    window.location.href = '/plan/detail/' + data.id;
+                } else if(obj.event === 'execute'){
+                    layer.confirm('确认开始执行任务？', function(index){
+                        $.post('/plan/execute/' + data.id, function(res){
+                            if(res.code === 0){
+                                layer.msg('任务已开始');
+                                table.reload('myPlanTable');
+                            } else {
+                                layer.msg(res.msg);
+                            }
+                        });
+                        layer.close(index);
+                    });
+                } else if(obj.event === 'receipt'){
+                    // Submit Receipt Popup
+                    layer.prompt({
+                        formType: 2,
+                        value: '',
+                        title: '请输入执行回执',
+                        area: ['500px', '300px'] // custom area
+                    }, function(value, index, elem){
+                        var token = $("meta[name='_csrf']").attr("content");
+                        var header = $("meta[name='_csrf_header']").attr("content");
+                        
+                        $.ajax({
+                            url: '/plan/receipt/' + data.id,
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ receipt: value }),
+                            beforeSend: function(xhr) {
+                                if(header && token) xhr.setRequestHeader(header, token);
+                            },
+                            success: function(res){
+                                if(res.code === 0){
+                                    layer.msg('回执提交成功');
+                                    layer.close(index);
+                                    table.reload('myPlanTable');
+                                } else {
+                                    layer.msg(res.msg);
+                                }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'verify_test') {
+                    // TEST Verify Logic
+                    // Requirement: TEST confirmation.
+                    layer.confirm('确认验证通过吗？', {
+                        btn: ['通过', '不通过', '取消']
+                    }, function(index){
+                        // Pass
+                         $.post('/plan/verify/test/' + data.id, {pass: true}, function(res){
+                             if(res.code === 0) { layer.msg('验证已通过'); table.reload('myPlanTable'); }
+                             else { layer.msg(res.msg); }
+                         });
+                         layer.close(index);
+                    }, function(index){
+                        // Fail
+                         $.post('/plan/verify/test/' + data.id, {pass: false}, function(res){
+                             if(res.code === 0) { layer.msg('验证不通过'); table.reload('myPlanTable'); }
+                             else { layer.msg(res.msg); }
+                         });
+                         layer.close(index);
+                    });
+                } else if (obj.event === 'finalize') {
+                    // LEADER Finalize Logic
+                    layer.confirm('确认结项吗？', function(index){
+                        $.post('/plan/finalize/' + data.id, function(res){
+                            if(res.code === 0){
+                                layer.msg('任务已结项');
+                                table.reload('myPlanTable');
+                            } else {
+                                layer.msg(res.msg);
+                            }
+                        });
+                        layer.close(index);
+                    });
+                }
+            });
+        });
+    </script>
+</div>
+</body>
+</html>

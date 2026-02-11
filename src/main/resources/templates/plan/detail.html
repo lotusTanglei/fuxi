@@ -7,9 +7,7 @@
             <span style="font-size: 18px; margin-right: 10px;" th:text="${plan.title}">任务标题</span>
             <span id="planStatusBadge" class="layui-badge layui-bg-gray" th:text="${plan.status}">STATUS</span>
             <div style="float: right;">
-                <button class="layui-btn layui-btn-normal layui-btn-sm" id="executeBtn" th:if="${plan.status == 'DRAFT' || plan.status == 'PENDING' || plan.status == 'FAILED'}">
-                    <i class="layui-icon layui-icon-play"></i> 执行任务
-                </button>
+                <!-- Buttons are controlled by backend status validation, but we can hide them here too -->
                 <a href="/plan/list" class="layui-btn layui-btn-primary layui-btn-sm">返回列表</a>
             </div>
         </div>
@@ -20,6 +18,38 @@
                         <div class="layui-card-body" style="background-color: #f8f8f8;">
                             <p><strong>目标现场：</strong> <span th:text="${plan.targetSite}"></span></p>
                             <p><strong>描述信息：</strong> <span th:text="${plan.description}"></span></p>
+                            <p><strong>当前状态：</strong> <span th:text="${plan.status}"></span></p>
+                            
+                            <!-- Workflow Actions (Visible based on Status) -->
+                            <div style="margin-top: 10px;">
+                                <!-- OPS Action: Execute (PENDING) -->
+                                <button class="layui-btn layui-btn-warm layui-btn-sm" id="executeBtn" 
+                                    th:if="${plan.status == 'PENDING'}" sec:authorize="hasAnyRole('ADMIN', 'OPS')">
+                                    <i class="layui-icon layui-icon-play"></i> 执行任务
+                                </button>
+                                
+                                <!-- OPS Action: Submit Receipt (RUNNING) -->
+                                <button class="layui-btn layui-btn-normal layui-btn-sm" id="receiptBtn" 
+                                    th:if="${plan.status == 'RUNNING'}" sec:authorize="hasAnyRole('ADMIN', 'OPS')">
+                                    <i class="layui-icon layui-icon-form"></i> 填写回执
+                                </button>
+                                
+                                <!-- TEST Action: Verify (VERIFYING_TEST) -->
+                                <button class="layui-btn layui-btn-normal layui-btn-sm" id="verifyTestBtn" 
+                                    th:if="${plan.status == 'VERIFYING_TEST'}" sec:authorize="hasAnyRole('ADMIN', 'TEST')">
+                                    <i class="layui-icon layui-icon-auz"></i> 验证通过
+                                </button>
+                                <button class="layui-btn layui-btn-danger layui-btn-sm" id="rejectTestBtn" 
+                                    th:if="${plan.status == 'VERIFYING_TEST'}" sec:authorize="hasAnyRole('ADMIN', 'TEST')">
+                                    <i class="layui-icon layui-icon-close"></i> 验证不通过
+                                </button>
+                                
+                                <!-- LEADER Action: Finalize (VERIFYING_LEADER) -->
+                                <button class="layui-btn layui-btn-danger layui-btn-sm" id="finalizeBtn" 
+                                    th:if="${plan.status == 'VERIFYING_LEADER'}" sec:authorize="hasAnyRole('ADMIN', 'LEADER')">
+                                    <i class="layui-icon layui-icon-ok"></i> 结项
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -28,9 +58,7 @@
             <table id="itemTable" lay-filter="itemTable"></table>
             
             <script type="text/html" id="barDemo">
-                {{#  if(d.status === 'SUCCESS' && (d.verifyStatus === 'PENDING' || d.verifyStatus == null)){ }}
-                    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="verify">验证</a>
-                {{#  } }}
+                <!-- Item level verification removed/hidden as we moved to Plan level verification -->
             </script>
         </div>
     </div>
@@ -49,16 +77,11 @@
                 var color = 'layui-bg-gray';
                 if(status === 'PENDING') color = 'layui-bg-orange';
                 if(status === 'RUNNING') color = 'layui-bg-blue';
+                if(status === 'VERIFYING_TEST') color = 'layui-bg-cyan';
+                if(status === 'VERIFYING_LEADER') color = 'layui-bg-blue';
                 if(status === 'COMPLETED') color = 'layui-bg-green';
-                if(status === 'FAILED') color = ''; // default red
                 
                 $('#planStatusBadge').attr('class', 'layui-badge ' + color).text(status);
-                
-                if (status === 'RUNNING') {
-                    $('#executeBtn').hide();
-                } else if (status === 'DRAFT' || status === 'PENDING' || status === 'FAILED') {
-                    $('#executeBtn').show();
-                }
             }
             updateStatusBadge(planStatus);
             
@@ -69,7 +92,9 @@
                 cols: [
                     [
                         {field: 'sortOrder', title: '顺序', width: 80, align: 'center'},
-                        {field: 'scriptVersionId', title: '脚本ID', width: 100}, // Should fetch title, but keeping simple for now
+                        {title: '脚本', width: 250, templet: function(d){
+                            return '<a href="javascript:;" class="layui-table-link" lay-event="viewScript">' + d.scriptTitle + '</a> <span class="layui-badge layui-bg-gray">v' + d.versionNum + '</span>';
+                        }},
                         {field: 'status', title: '状态', width: 120, align: 'center', templet: function(d){
                             if(d.status === 'PENDING') return '<span class="layui-badge-dot layui-bg-orange"></span> 待执行';
                             if(d.status === 'RUNNING') return '<span class="layui-badge-dot layui-bg-blue"></span> 执行中';
@@ -79,14 +104,7 @@
                         }},
                         {field: 'executionResult', title: '执行结果'},
                         {field: 'startedAt', title: '开始时间', width: 180},
-                        {field: 'finishedAt', title: '结束时间', width: 180},
-                        {field: 'verifyStatus', title: '验证状态', width: 100, templet: function(d){
-                            if(d.verifyStatus === 'PASS') return '<span style="color: green">通过</span>';
-                            if(d.verifyStatus === 'FAIL') return '<span style="color: red">失败</span>';
-                            return '未验证';
-                        }},
-                        {field: 'verifiedBy', title: '验证人', width: 100},
-                        {fixed: 'right', title:'操作', toolbar: '#barDemo', width: 80}
+                        {field: 'finishedAt', title: '结束时间', width: 180}
                     ]
                 ]
             });
@@ -94,58 +112,34 @@
             // Tool Bar
             table.on('tool(itemTable)', function(obj){
                 var data = obj.data;
-                if(obj.event === 'verify'){
-                    layer.confirm('验证结果确认', {
-                        btn: ['通过', '不通过', '取消'] // Buttons
-                    }, function(index){
-                        submitVerify(data.id, true, 'Verified via UI');
-                        layer.close(index);
-                    }, function(index){
-                        layer.prompt({title: '请输入不通过原因', formType: 2}, function(text, index2){
-                            submitVerify(data.id, false, text);
-                            layer.close(index2);
-                            layer.close(index);
-                        });
+                if(obj.event === 'viewScript'){
+                    // Fetch script content
+                    $.get('/script/api/version/' + data.scriptVersionId, function(res){
+                        if(res.code === 0){
+                            var content = res.data.content;
+                            // Show in layer
+                            layer.open({
+                                type: 1,
+                                title: '脚本内容: ' + data.scriptTitle + ' (v' + data.versionNum + ')',
+                                area: ['800px', '600px'],
+                                content: '<pre style="padding: 15px; background: #f5f5f5; border: 1px solid #ddd; height: 530px; overflow: auto; margin: 0;">' + 
+                                         layui.util.escape(content) + '</pre>',
+                                shadeClose: true
+                            });
+                        } else {
+                            layer.msg('获取脚本内容失败: ' + res.msg);
+                        }
                     });
                 }
             });
             
-            function submitVerify(itemId, pass, remark) {
-                var token = $("meta[name='_csrf']").attr("content");
-                var header = $("meta[name='_csrf_header']").attr("content");
-                
-                $.ajax({
-                    url: '/plan/verify/' + itemId,
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({pass: pass, remark: remark}),
-                    beforeSend: function(xhr) {
-                        xhr.setRequestHeader(header, token);
-                    },
-                    success: function(res) {
-                        if(res.code === 0){
-                            layer.msg('操作成功');
-                            table.reload('itemTable');
-                        } else {
-                            layer.msg(res.msg);
-                        }
-                    },
-                    error: function() {
-                        layer.msg('请求失败');
-                    }
-                });
-            }
-            
-            // Execute Button
+            // OPS Execute
             $('#executeBtn').on('click', function(){
                 layer.confirm('确定要开始执行该任务包吗？', function(index){
-                    $.post('/plan/execute/' + planId, {
-                        _csrf: $("meta[name='_csrf']").attr("content")
-                    }, function(res){
+                    $.post('/plan/execute/' + planId, function(res){
                         if(res.code === 0){
                             layer.msg('任务已启动');
-                            $('#executeBtn').hide();
-                            startPolling();
+                            setTimeout(function(){ location.reload(); }, 1000);
                         } else {
                             layer.msg(res.msg);
                         }
@@ -154,19 +148,94 @@
                 });
             });
             
-            // Polling for updates
-            var pollInterval;
-            function startPolling() {
-                if (pollInterval) return;
-                pollInterval = setInterval(function(){
-                    table.reload('itemTable');
-                    // Check plan status (optional: need an API for plan status or reload page)
-                    // For simplicity, we just reload table. If all done, we could stop polling.
-                }, 2000);
-            }
+            // OPS Receipt
+            $('#receiptBtn').on('click', function(){
+                layer.prompt({
+                    formType: 2,
+                    value: '',
+                    title: '请输入执行回执',
+                    area: ['500px', '300px']
+                }, function(value, index, elem){
+                    $.ajax({
+                        url: '/plan/receipt/' + planId,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ receipt: value }),
+                        success: function(res){
+                            if(res.code === 0){
+                                layer.msg('回执提交成功');
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            } else {
+                                layer.msg(res.msg);
+                            }
+                        }
+                    });
+                    layer.close(index);
+                });
+            });
             
+            // TEST Verify Pass
+            $('#verifyTestBtn').on('click', function(){
+                layer.confirm('确认验证通过？', function(index){
+                    $.ajax({
+                        url: '/plan/verify/test/' + planId,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ pass: true }),
+                        success: function(res){
+                            if(res.code === 0){
+                                layer.msg('验证已通过');
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            } else {
+                                layer.msg(res.msg);
+                            }
+                        }
+                    });
+                    layer.close(index);
+                });
+            });
+            
+            // TEST Verify Fail
+            $('#rejectTestBtn').on('click', function(){
+                layer.confirm('确认验证不通过？(将退回至待执行状态)', function(index){
+                    $.ajax({
+                        url: '/plan/verify/test/' + planId,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ pass: false }),
+                        success: function(res){
+                            if(res.code === 0){
+                                layer.msg('已退回');
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            } else {
+                                layer.msg(res.msg);
+                            }
+                        }
+                    });
+                    layer.close(index);
+                });
+            });
+            
+            // LEADER Finalize
+            $('#finalizeBtn').on('click', function(){
+                layer.confirm('确认结项？', function(index){
+                    $.post('/plan/finalize/' + planId, function(res){
+                        if(res.code === 0){
+                            layer.msg('已结项');
+                            setTimeout(function(){ location.reload(); }, 1000);
+                        } else {
+                            layer.msg(res.msg);
+                        }
+                    });
+                    layer.close(index);
+                });
+            });
+
+            // Polling for updates if running
             if (planStatus === 'RUNNING') {
-                startPolling();
+                setInterval(function(){
+                    table.reload('itemTable');
+                }, 2000);
             }
         });
     </script>

@@ -29,7 +29,27 @@ public interface PlanService extends IService<ExecutionPlan> {
     List<ExecutionPlanItem> getPlanItems(Long planId);
     
     /**
+     * Get items for a plan with script details (Title, Version)
+     */
+    List<java.util.Map<String, Object>> getPlanItemsWithDetails(Long planId);
+    
+    /**
      * Verify a plan item execution result
      */
     void verifyItem(Long itemId, boolean pass, String remark);
+    
+    /**
+     * Submit execution receipt (OPS)
+     */
+    void submitReceipt(Long planId, String receipt);
+    
+    /**
+     * Verify plan (TEST)
+     */
+    void verifyPlanTest(Long planId, boolean pass);
+    
+    /**
+     * Finalize plan (LEADER)
+     */
+    void finalizePlan(Long planId);
 }

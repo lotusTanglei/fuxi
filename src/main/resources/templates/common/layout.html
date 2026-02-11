@@ -271,6 +271,20 @@
             $('.layui-nav-item a:contains("系统管理")').parent().addClass('layui-nav-itemed');
         }
     });
+    // Global AJAX CSRF Setup
+    layui.use(['jquery'], function(){
+        var $ = layui.jquery;
+        var token = $("meta[name='_csrf']").attr("content");
+        var header = $("meta[name='_csrf_header']").attr("content");
+        
+        if (token && header) {
+            $.ajaxSetup({
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader(header, token);
+                }
+            });
+        }
+    });
 </script>
 </body>
 </html>

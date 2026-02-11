@@ -32,6 +32,22 @@ public class UserController {
         return "user/list";
     }
 
+    @GetMapping("/api/leaders")
+    @ResponseBody
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV', 'LEADER')") // Allow DEV/LEADER to see list of leaders
+    public Map<String, Object> getLeaders() {
+        List<SysUser> leaders = sysUserService.list(new LambdaQueryWrapper<SysUser>()
+                .like(SysUser::getRole, "LEADER"));
+        
+        // Hide sensitive info
+        leaders.forEach(u -> u.setPassword(null));
+        
+        Map<String, Object> map = new HashMap<>();
+        map.put("code", 0);
+        map.put("data", leaders);
+        return map;
+    }
+
     @GetMapping("/api/list")
     @ResponseBody
     public Map<String, Object> apiList(@RequestParam(defaultValue = "1") Integer page,

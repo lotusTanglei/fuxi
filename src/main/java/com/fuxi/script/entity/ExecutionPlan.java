@@ -13,12 +13,14 @@ public class ExecutionPlan {
     private String title;
     private String description;
     private String targetSite;
-    private String status; // DRAFT, PENDING, APPROVED, REJECTED, COMPLETED
+    private String status; // DRAFT, PENDING, RUNNING, VERIFYING_TEST, VERIFYING_LEADER, COMPLETED
     
     // Assigned Roles
     private Long assignedOpsId;
     private Long assignedLeaderId;
     private Long assignedTestId;
+    
+    private String executionReceipt; // OPS execution receipt
     
     private String createdBy;
     

@@ -29,7 +29,14 @@ public interface ScriptService extends IService<ScriptInfo> {
     /**
      * Submit script for review
      */
-    void submitScript(Long scriptId);
+    void submitScript(Long scriptId, Long leaderId);
+    
+    /**
+     * Submit script for review (legacy)
+     */
+    default void submitScript(Long scriptId) {
+        submitScript(scriptId, null);
+    }
     
     /**
      * Review script

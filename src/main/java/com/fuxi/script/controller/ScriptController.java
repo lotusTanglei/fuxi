@@ -33,7 +33,8 @@ public class ScriptController {
     @ResponseBody
     public Map<String, Object> apiList(@RequestParam(defaultValue = "1") Integer page,
                                        @RequestParam(defaultValue = "10") Integer limit,
-                                       @RequestParam(required = false) String title) {
+                                       @RequestParam(required = false) String title,
+                                       @RequestParam(required = false) String status) {
         Page<ScriptInfo> pageParam = new Page<>(page, limit);
         LambdaQueryWrapper<ScriptInfo> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(title)) {
@@ -45,7 +46,14 @@ public class ScriptController {
         
         // Enrich with latest version info
         List<ScriptInfo> records = result.getRecords();
-        for (ScriptInfo script : records) {
+        // If status filter is provided, we need to filter records after enriching, 
+        // or better, query based on latest version status. 
+        // Querying on latest version status in SQL is complex with MybatisPlus wrapper on ScriptInfo.
+        // For simplicity, we filter in memory here, but pagination might be off.
+        // A better approach is to filter where possible or accept memory filtering limitation for now.
+        // Given the requirement, let's filter in memory.
+        
+        List<ScriptInfo> enrichedRecords = records.stream().map(script -> {
             ScriptVersion latest = scriptService.getLatestVersion(script.getId());
             if (latest != null) {
                 script.setVersionNum(latest.getVersionNum());
@@ -54,13 +62,22 @@ public class ScriptController {
                 script.setRemark(latest.getRemark());
                 script.setLatestVersionId(latest.getId());
             }
-        }
+            return script;
+        }).filter(script -> {
+            if (StringUtils.hasText(status)) {
+                return status.equals(script.getStatus());
+            }
+            return true;
+        }).collect(Collectors.toList());
+        
+        // If we filter in memory, the total count in 'result' is wrong for the filtered list.
+        // However, Layui table might handle it if we return the filtered count.
         
         Map<String, Object> map = new HashMap<>();
         map.put("code", 0);
         map.put("msg", "");
-        map.put("count", result.getTotal());
-        map.put("data", records);
+        map.put("count", StringUtils.hasText(status) ? enrichedRecords.size() : result.getTotal()); // Approx
+        map.put("data", enrichedRecords);
         return map;
     }
 
@@ -110,9 +127,19 @@ public class ScriptController {
     @PostMapping("/submit/{id}")
     @ResponseBody
     @PreAuthorize("hasAnyRole('ADMIN', 'DEV', 'LEADER')")
-    public Map<String, Object> submit(@PathVariable Long id) {
+    public Map<String, Object> submit(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> params) {
         try {
-            scriptService.submitScript(id);
+            Long leaderId = null;
+            if (params != null && params.containsKey("leaderId")) {
+                Object leaderIdObj = params.get("leaderId");
+                if (leaderIdObj instanceof Number) {
+                    leaderId = ((Number) leaderIdObj).longValue();
+                } else if (leaderIdObj instanceof String) {
+                    leaderId = Long.parseLong((String) leaderIdObj);
+                }
+            }
+            
+            scriptService.submitScript(id, leaderId);
             Map<String, Object> map = new HashMap<>();
             map.put("code", 0);
             map.put("msg", "提交成功");

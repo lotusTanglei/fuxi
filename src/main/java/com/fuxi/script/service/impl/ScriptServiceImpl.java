@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fuxi.script.entity.ScriptInfo;
 import com.fuxi.script.entity.ScriptVersion;
+import com.fuxi.script.entity.SysUser;
 import com.fuxi.script.mapper.ScriptInfoMapper;
 import com.fuxi.script.mapper.ScriptVersionMapper;
+import com.fuxi.script.mapper.SysUserMapper;
 import com.fuxi.script.service.ScriptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 public class ScriptServiceImpl extends ServiceImpl<ScriptInfoMapper, ScriptInfo> implements ScriptService {
 
     private final ScriptVersionMapper scriptVersionMapper;
+    private final SysUserMapper sysUserMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -92,10 +95,11 @@ public class ScriptServiceImpl extends ServiceImpl<ScriptInfoMapper, ScriptInfo>
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void submitScript(Long scriptId) {
+    public void submitScript(Long scriptId, Long leaderId) {
         ScriptVersion latest = getLatestVersion(scriptId);
         if (latest != null) {
             latest.setStatus("SUBMITTED");
+            latest.setAssignedLeaderId(leaderId);
             scriptVersionMapper.updateById(latest);
         }
     }
@@ -113,9 +117,19 @@ public class ScriptServiceImpl extends ServiceImpl<ScriptInfoMapper, ScriptInfo>
 
     @Override
     public com.baomidou.mybatisplus.extension.plugins.pagination.Page<ScriptVersion> getPendingAuditVersions(com.baomidou.mybatisplus.extension.plugins.pagination.Page<ScriptVersion> page) {
-        return scriptVersionMapper.selectPage(page, new LambdaQueryWrapper<ScriptVersion>()
+        LambdaQueryWrapper<ScriptVersion> wrapper = new LambdaQueryWrapper<ScriptVersion>()
                 .eq(ScriptVersion::getStatus, "SUBMITTED")
-                .orderByDesc(ScriptVersion::getId));
+                .orderByDesc(ScriptVersion::getId);
+
+        // Filter by Assigned Leader if current user is LEADER (and not ADMIN)
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        SysUser currentUser = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, currentUsername));
+
+        if (currentUser != null && "LEADER".equals(currentUser.getRole())) {
+            wrapper.eq(ScriptVersion::getAssignedLeaderId, currentUser.getId());
+        }
+
+        return scriptVersionMapper.selectPage(page, wrapper);
     }
 
     @Override

@@ -75,23 +75,27 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createDefaultUser(String username, String realName, String role, SysSite defaultSite) {
-        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
-        if (user == null) {
-            user = new SysUser();
-            user.setUsername(username);
-            user.setPassword(passwordEncoder.encode("123456"));
-            user.setRealName(realName);
-            user.setRole(role);
-            sysUserMapper.insert(user);
-            
-            SysUserSite userSite = new SysUserSite();
-            userSite.setUserId(user.getId());
-            userSite.setSiteId(defaultSite.getId());
-            sysUserSiteMapper.insert(userSite);
-            
-            log.info("Default {} user created: username={}, password=123456", role, username);
-        } else {
-            log.info("User {} already exists. Role: {}", username, user.getRole());
+        try {
+            SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
+            if (user == null) {
+                user = new SysUser();
+                user.setUsername(username);
+                user.setPassword(passwordEncoder.encode("123456"));
+                user.setRealName(realName);
+                user.setRole(role);
+                sysUserMapper.insert(user);
+                
+                SysUserSite userSite = new SysUserSite();
+                userSite.setUserId(user.getId());
+                userSite.setSiteId(defaultSite.getId());
+                sysUserSiteMapper.insert(userSite);
+                
+                log.info("Default {} user created: username={}, password=123456", role, username);
+            } else {
+                log.info("User {} already exists. Role: {}", username, user.getRole());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to create user {}: {}", username, e.getMessage());
         }
     }
 }

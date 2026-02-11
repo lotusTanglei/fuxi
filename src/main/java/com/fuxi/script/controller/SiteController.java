@@ -19,7 +19,7 @@ import java.util.Map;
 @Controller
 @RequestMapping("/site")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'LEADER')") // Allow LEADER to access site list
 public class SiteController {
 
     private final SysSiteService sysSiteService;
@@ -32,6 +32,7 @@ public class SiteController {
 
     @GetMapping("/api/list")
     @ResponseBody
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEADER', 'OPS', 'DEV', 'TEST')") // Allow all roles to fetch site list for dropdowns
     public Map<String, Object> apiList(@RequestParam(defaultValue = "1") Integer page,
                                        @RequestParam(defaultValue = "10") Integer limit,
                                        @RequestParam(required = false) String name) {

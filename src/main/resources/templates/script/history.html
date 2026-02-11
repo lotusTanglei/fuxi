@@ -60,6 +60,9 @@
         }
         #diffView {
             height: 600px; /* Increase height */
+            /* Clear floats inside diffView */
+            overflow: hidden;
+            position: relative;
         }
     </style>
 
@@ -111,7 +114,13 @@
                             if(d.status === 'SUBMITTED') return '<span style="color: orange">待审核</span>';
                             return '草稿';
                         }},
-                        {field: 'createdAt', title: '创建时间', width: 160}
+                        {field: 'createdAt', title: '创建时间', width: 160},
+                        {field: 'auditRemark', title: '备注', minWidth: 100, templet: function(d){
+                            if(d.status === 'REJECTED' && d.auditRemark){
+                                return '<span style="color: #FF5722;" title="' + d.auditRemark + '">' + d.auditRemark + '</span>';
+                            }
+                            return d.remark || '';
+                        }}
                     ]
                 ],
                 done: function(res){
@@ -166,7 +175,11 @@
                     // Force resize after loading content
                     setTimeout(function(){
                         $('#diffView').mergely('resize');
-                    }, 100);
+                        // Fix for layout distortion: Ensure width is set
+                        var w = $('#diffView').width();
+                        $('#diffView .mergely-column').width((w / 2) - 30); // Approximate
+                        $('#diffView').mergely('resize');
+                    }, 200);
                 });
             }
         });

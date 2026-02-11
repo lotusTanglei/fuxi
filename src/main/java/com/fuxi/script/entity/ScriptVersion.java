@@ -16,6 +16,7 @@ public class ScriptVersion {
     private String remark;
     private String status; // DRAFT, SUBMITTED, APPROVED, REJECTED
     private String auditRemark;
+    private Long assignedLeaderId; // ID of the leader assigned to audit
     
     private String createdBy;
     

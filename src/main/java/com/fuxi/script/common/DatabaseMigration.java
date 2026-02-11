@@ -101,11 +101,20 @@ public class DatabaseMigration implements CommandLineRunner {
                 log.info("Adding missing column audit_remark to script_version...");
                 jdbcTemplate.execute("ALTER TABLE script_version ADD COLUMN audit_remark VARCHAR(500) COMMENT 'Reason for rejection'");
             }
+            
+            // Check assigned_leader_id column
+            try {
+                jdbcTemplate.queryForObject("SELECT assigned_leader_id FROM script_version LIMIT 1", (rs, rowNum) -> null);
+            } catch (Exception ex) {
+                log.info("Adding missing column assigned_leader_id to script_version...");
+                jdbcTemplate.execute("ALTER TABLE script_version ADD COLUMN assigned_leader_id BIGINT");
+            }
         } catch (Exception e) {
             log.info("Adding missing column status to script_version...");
             try {
                 jdbcTemplate.execute("ALTER TABLE script_version ADD COLUMN status VARCHAR(20) DEFAULT 'DRAFT' COMMENT 'DRAFT, SUBMITTED, APPROVED, REJECTED'");
                 jdbcTemplate.execute("ALTER TABLE script_version ADD COLUMN audit_remark VARCHAR(500) COMMENT 'Reason for rejection'");
+                jdbcTemplate.execute("ALTER TABLE script_version ADD COLUMN assigned_leader_id BIGINT");
             } catch (Exception ex) {
                 log.warn("Failed to add status column: {}", ex.getMessage());
             }
@@ -152,8 +161,10 @@ public class DatabaseMigration implements CommandLineRunner {
         }
         
         // Check execution_plan table
+        boolean executionPlanExists = false;
         try {
-            jdbcTemplate.queryForObject("SELECT 1 FROM execution_plan LIMIT 1", (rs, rowNum) -> null);
+            jdbcTemplate.execute("SELECT 1 FROM execution_plan LIMIT 1");
+            executionPlanExists = true;
         } catch (Exception e) {
             log.info("Creating execution_plan table...");
             try {
@@ -169,54 +180,48 @@ public class DatabaseMigration implements CommandLineRunner {
                         "assigned_ops_id BIGINT, " +
                         "assigned_leader_id BIGINT, " +
                         "assigned_test_id BIGINT, " +
+                        "execution_receipt TEXT, " +
                         "is_deleted INT DEFAULT 0" +
                         ")");
+                executionPlanExists = true;
             } catch (Exception ex) {
                 log.warn("Failed to create execution_plan table: {}", ex.getMessage());
             }
         }
         
         // Check for assigned user columns in execution_plan if table exists
-        try {
-            jdbcTemplate.queryForObject("SELECT 1 FROM execution_plan LIMIT 1", (rs, rowNum) -> null);
+        if (executionPlanExists) {
             try {
                 jdbcTemplate.queryForObject("SELECT assigned_ops_id FROM execution_plan LIMIT 1", (rs, rowNum) -> null);
             } catch (Exception ex) {
                 log.info("Adding assigned user columns to execution_plan table...");
-                jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_ops_id BIGINT");
-                jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_leader_id BIGINT");
-                jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_test_id BIGINT");
+                try {
+                    jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_ops_id BIGINT");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_leader_id BIGINT");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN assigned_test_id BIGINT");
+                } catch (Exception e) {
+                    log.warn("Failed to add assigned user columns: {}", e.getMessage());
+                }
             }
-        } catch (Exception e) {
-            // Table creation handled above
+            
+            // Check execution_receipt column
+            try {
+                jdbcTemplate.queryForObject("SELECT execution_receipt FROM execution_plan LIMIT 1", (rs, rowNum) -> null);
+            } catch (Exception ex) {
+                log.info("Adding execution_receipt column to execution_plan table...");
+                try {
+                    jdbcTemplate.execute("ALTER TABLE execution_plan ADD COLUMN execution_receipt TEXT");
+                } catch (Exception e) {
+                    log.warn("Failed to add execution_receipt column: {}", e.getMessage());
+                }
+            }
         }
 
         // Check execution_plan_item table
+        boolean executionPlanItemExists = false;
         try {
-            jdbcTemplate.queryForObject("SELECT 1 FROM execution_plan_item LIMIT 1", (rs, rowNum) -> null);
-            
-            // Table exists, check for status column
-            try {
-                jdbcTemplate.queryForObject("SELECT status FROM execution_plan_item LIMIT 1", (rs, rowNum) -> null);
-            } catch (Exception ex) {
-                log.info("Adding missing columns to execution_plan_item table...");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN status VARCHAR(50) DEFAULT 'PENDING' COMMENT 'PENDING, RUNNING, SUCCESS, FAILED'");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN execution_result TEXT");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN started_at DATETIME");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN finished_at DATETIME");
-            }
-            
-            // Check verify_status column
-            try {
-                jdbcTemplate.queryForObject("SELECT verify_status FROM execution_plan_item LIMIT 1", (rs, rowNum) -> null);
-            } catch (Exception ex) {
-                log.info("Adding verification columns to execution_plan_item table...");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verify_status VARCHAR(50) DEFAULT 'PENDING' COMMENT 'PENDING, PASS, FAIL'");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verify_remark TEXT");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verified_by VARCHAR(50)");
-                jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verified_at DATETIME");
-            }
-            
+            jdbcTemplate.execute("SELECT 1 FROM execution_plan_item LIMIT 1");
+            executionPlanItemExists = true;
         } catch (Exception e) {
             log.info("Creating execution_plan_item table...");
             try {
@@ -235,8 +240,41 @@ public class DatabaseMigration implements CommandLineRunner {
                         "verified_at DATETIME, " +
                         "FOREIGN KEY (plan_id) REFERENCES execution_plan(id)" +
                         ")");
+                executionPlanItemExists = true;
             } catch (Exception ex) {
                 log.warn("Failed to create execution_plan_item table: {}", ex.getMessage());
+            }
+        }
+        
+        if (executionPlanItemExists) {
+            // Table exists, check for status column
+            try {
+                jdbcTemplate.queryForObject("SELECT status FROM execution_plan_item LIMIT 1", (rs, rowNum) -> null);
+            } catch (Exception ex) {
+                log.info("Adding missing columns to execution_plan_item table...");
+                try {
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN status VARCHAR(50) DEFAULT 'PENDING' COMMENT 'PENDING, RUNNING, SUCCESS, FAILED'");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN execution_result TEXT");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN started_at DATETIME");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN finished_at DATETIME");
+                } catch (Exception e) {
+                    log.warn("Failed to add missing columns to execution_plan_item: {}", e.getMessage());
+                }
+            }
+            
+            // Check verify_status column
+            try {
+                jdbcTemplate.queryForObject("SELECT verify_status FROM execution_plan_item LIMIT 1", (rs, rowNum) -> null);
+            } catch (Exception ex) {
+                log.info("Adding verification columns to execution_plan_item table...");
+                try {
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verify_status VARCHAR(50) DEFAULT 'PENDING' COMMENT 'PENDING, PASS, FAIL'");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verify_remark TEXT");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verified_by VARCHAR(50)");
+                    jdbcTemplate.execute("ALTER TABLE execution_plan_item ADD COLUMN verified_at DATETIME");
+                } catch (Exception e) {
+                    log.warn("Failed to add verification columns to execution_plan_item: {}", e.getMessage());
+                }
             }
         }
     }

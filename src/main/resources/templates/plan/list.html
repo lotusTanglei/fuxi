@@ -17,9 +17,9 @@
                     </button>
                 </div>
                 <div sec:authorize="hasAnyRole('ADMIN', 'LEADER')">
-                    <a href="/plan/form" class="layui-btn layui-btn-normal">
+                    <button type="button" class="layui-btn layui-btn-normal" id="addPlanBtn">
                         <i class="layui-icon layui-icon-add-1"></i> 新建任务包
-                    </a>
+                    </button>
                 </div>
             </form>
             
@@ -44,6 +44,7 @@
             
             // Render Table
             table.render({
+                id: 'planTable',
                 elem: '#planTable',
                 url: '/plan/api/list',
                 cols: [
@@ -86,11 +87,31 @@
                         layer.close(index);
                     });
                 } else if(obj.event === 'edit'){
-                    window.location.href = '/plan/form?id=' + data.id;
+                    openForm(data.id);
                 } else if(obj.event === 'detail'){
                     window.location.href = '/plan/detail/' + data.id;
                 }
             });
+            
+            // Add Plan
+            $('#addPlanBtn').on('click', function(){
+                openForm();
+            });
+            
+            function openForm(id) {
+                var title = id ? '编辑任务包' : '新建任务包';
+                var url = '/plan/form' + (id ? '?id=' + id : '');
+                
+                layer.open({
+                    type: 2,
+                    title: title,
+                    area: ['1000px', '700px'],
+                    content: url,
+                    end: function() {
+                        table.reload('planTable');
+                    }
+                });
+            }
         });
     </script>
 </div>

@@ -46,6 +46,7 @@
                     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
                 {{#  } else { }}
                     <a class="layui-btn layui-btn-primary layui-btn-xs" lay-event="view">查看</a>
+                    <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="history">历史</a>
                 {{#  } }}
             </script>
         </div>
@@ -121,26 +122,67 @@
                 } else if(obj.event === 'history'){
                     window.location.href = '/script/history/' + data.id;
                 } else if(obj.event === 'submit'){
-                    layer.confirm('确定提交审核吗？', function(index){
-                        var token = $("meta[name='_csrf']").attr("content");
-                        var header = $("meta[name='_csrf_header']").attr("content");
-                        
-                        $.ajax({
-                            url: '/script/submit/' + data.id,
-                            type: 'POST',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader(header, token);
-                            },
-                            success: function(res){
-                                if(res.code === 0){
-                                    table.reload('scriptTable');
-                                    layer.msg('提交成功');
-                                } else {
-                                    layer.msg(res.msg);
+                    // Fetch Leader Users for Selection
+                    $.get('/user/api/leaders', function(res){
+                        if(res.code === 0){
+                            var leaderOptions = '<option value="">请选择审核主管</option>';
+                            res.data.forEach(function(user){
+                                leaderOptions += '<option value="' + user.id + '">' + user.realName + ' (' + user.username + ')</option>';
+                            });
+                            
+                            layer.open({
+                                type: 1,
+                                title: '提交审核',
+                                area: ['400px', '250px'],
+                                content: '<div style="padding: 20px;">' +
+                                            '<form class="layui-form">' +
+                                                '<div class="layui-form-item">' +
+                                                    '<label class="layui-form-label">审核人</label>' +
+                                                    '<div class="layui-input-block">' +
+                                                        '<select name="leaderId" lay-verify="required">' +
+                                                            leaderOptions +
+                                                        '</select>' +
+                                                    '</div>' +
+                                                '</div>' +
+                                            '</form>' +
+                                         '</div>',
+                                btn: ['确定', '取消'],
+                                success: function(layero, index){
+                                    form.render('select');
+                                },
+                                yes: function(index, layero){
+                                    var leaderId = layero.find('select[name="leaderId"]').val();
+                                    if(!leaderId){
+                                        layer.msg('请选择审核主管');
+                                        return;
+                                    }
+                                    
+                                    var token = $("meta[name='_csrf']").attr("content");
+                                    var header = $("meta[name='_csrf_header']").attr("content");
+                                    
+                                    $.ajax({
+                                        url: '/script/submit/' + data.id,
+                                        type: 'POST',
+                                        contentType: 'application/json',
+                                        data: JSON.stringify({ leaderId: leaderId }),
+                                        beforeSend: function(xhr) {
+                                            xhr.setRequestHeader(header, token);
+                                        },
+                                        success: function(res){
+                                            if(res.code === 0){
+                                                table.reload('scriptTable');
+                                                layer.msg('提交成功');
+                                                layer.close(index);
+                                            } else {
+                                                layer.msg(res.msg);
+                                            }
+                                        }
+                                    });
                                 }
-                            }
-                        });
-                        layer.close(index);
+                            });
+                        } else {
+                            layer.msg('无法获取主管列表: ' + res.msg);
+                        }
                     });
                 }
             });

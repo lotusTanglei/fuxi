@@ -7,8 +7,15 @@
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <link rel="stylesheet" href="//unpkg.com/layui@2.9.6/dist/css/layui.css">
     <style>
-        body { padding: 20px; }
-        .layui-form-select dl { max-height: 200px; }
+        body { padding: 20px; min-height: 600px; }
+        /* Fix Layui Select Overflow in Layer */
+        .layui-form-select dl { 
+            max-height: 250px; 
+        }
+        /* Ensure specific containers in the row don't hide overflow */
+        .layui-col-md4 {
+            overflow: visible;
+        }
     </style>
 </head>
 <body>
@@ -43,25 +50,31 @@
             <div class="layui-input-block">
                 <div class="layui-row layui-col-space10">
                     <div class="layui-col-md4">
-                        <label class="layui-form-label" style="width: auto; padding-left: 0;">执行人 (OPS)</label>
-                        <select name="assignedOpsId" lay-verify="required">
-                            <option value="">请选择运维人员</option>
-                            <option th:each="user : ${opsUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedOpsId == user.id}"></option>
-                        </select>
+                        <label class="layui-form-label" style="float: none; text-align: left; padding-left: 0;">执行人 (OPS)</label>
+                        <div class="layui-input-block" style="margin-left: 0;">
+                            <select name="assignedOpsId" lay-verify="required">
+                                <option value="">请选择运维人员</option>
+                                <option th:each="user : ${opsUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedOpsId == user.id}"></option>
+                            </select>
+                        </div>
                     </div>
                     <div class="layui-col-md4">
-                        <label class="layui-form-label" style="width: auto; padding-left: 0;">验证人 (LEADER)</label>
-                        <select name="assignedLeaderId" lay-verify="required">
-                            <option value="">请选择主管人员</option>
-                            <option th:each="user : ${leaderUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedLeaderId == user.id}"></option>
-                        </select>
+                        <label class="layui-form-label" style="float: none; text-align: left; padding-left: 0;">验证人 (LEADER)</label>
+                        <div class="layui-input-block" style="margin-left: 0;">
+                            <select name="assignedLeaderId" lay-verify="required">
+                                <option value="">请选择主管人员</option>
+                                <option th:each="user : ${leaderUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedLeaderId == user.id}"></option>
+                            </select>
+                        </div>
                     </div>
                     <div class="layui-col-md4">
-                        <label class="layui-form-label" style="width: auto; padding-left: 0;">验证人 (TEST)</label>
-                        <select name="assignedTestId" lay-verify="required">
-                            <option value="">请选择测试人员</option>
-                            <option th:each="user : ${testUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedTestId == user.id}"></option>
-                        </select>
+                        <label class="layui-form-label" style="float: none; text-align: left; padding-left: 0;">验证人 (TEST)</label>
+                        <div class="layui-input-block" style="margin-left: 0;">
+                            <select name="assignedTestId" lay-verify="required">
+                                <option value="">请选择测试人员</option>
+                                <option th:each="user : ${testUsers}" th:value="${user.id}" th:text="${user.realName} + ' (' + ${user.username} + ')'" th:selected="${plan.assignedTestId == user.id}"></option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -179,13 +192,15 @@
                         // Render Script Selection Table
                         table.render({
                             elem: '#scriptSelectionTable',
-                            url: '/script/api/list',
+                            url: '/script/api/list?status=APPROVED', // Filter by APPROVED status
                             cols: [
                                 [
                                     {type: 'checkbox'},
                                     {field: 'title', title: '脚本标题'},
                                     {field: 'versionNum', title: '最新版本', width: 100},
-                                    {field: 'status', title: '状态', width: 100}
+                                    {field: 'status', title: '状态', width: 100, templet: function(d){
+                                        return '<span class="layui-badge layui-bg-green">已通过</span>';
+                                    }}
                                 ]
                             ],
                             page: true,
